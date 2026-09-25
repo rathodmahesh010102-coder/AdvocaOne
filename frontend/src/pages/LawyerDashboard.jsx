@@ -1,558 +1,2470 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+import { useNavigate } from "react-router-dom";
 import "../App.css";
+import "./LawyerDashboard.css";
 
-function LawyerDashboard() {
-  const getLawyer = () => {
+const LawyerDashboard = () => {
+  const navigate = useNavigate();
+
+  /* Get current lawyer */
+  const getCurrentLawyer = () => {
     const lawyers =
-      JSON.parse(localStorage.getItem("advocaOneAdminLawyers")) || [];
+      JSON.parse(
+        localStorage.getItem("advocaOneAdminLawyers")
+      ) || [];
 
     return (
-      lawyers.find((lawyer) => lawyer.name === "Adv. Mahesh Test") ||
-      lawyers[lawyers.length - 1]
+      lawyers.find(
+        (lawyer) =>
+          lawyer.name === "Adv. Mahesh Test"
+      ) ||
+      lawyers[lawyers.length - 1] || {
+        id: "test-lawyer",
+        name: "Adv. Mahesh Test",
+        specialization: "General Practice",
+        location: "Pune",
+        consultationFee: 1000,
+      }
     );
   };
 
-  const currentLawyer = getLawyer();
+  const currentLawyer = getCurrentLawyer();
 
-  const [onlineStatus, setOnlineStatus] = useState(
-    currentLawyer?.onlineStatus || "Offline"
-  );
+  /* Main states */
+  const [appointments, setAppointments] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const [appointmentStatus, setAppointmentStatus] = useState(
-    currentLawyer?.appointmentStatus || "Accepting Appointments"
-  );
+  /* Modal states */
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState(null);
+  const [rescheduleAppointment, setRescheduleAppointment] =
+    useState(null);
 
-  const [appointments, setAppointments] = useState(() => {
+  /* Reschedule states */
+  const [newDate, setNewDate] = useState("");
+  const [newTime, setNewTime] = useState("");
+
+  /* Notification states */
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
+  /* Lawyer status */
+  const [onlineStatus, setOnlineStatus] =
+    useState("Online");
+
+  const [appointmentStatus, setAppointmentStatus] =
+    useState("Accepting Appointments");
+
+  /* Get today's date */
+  const getToday = () => {
+    const date = new Date();
+
+    const year = date.getFullYear();
+
+    const month = String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  /* Convert AM/PM time to minutes */
+  const getTimeInMinutes = (time) => {
+    if (!time) {
+      return 0;
+    }
+
+    const match = time.match(
+      /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i
+    );
+
+    if (!match) {
+      return 0;
+    }
+
+    let hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    const period = match[3].toUpperCase();
+
+    if (period === "PM" && hours !== 12) {
+      hours += 12;
+    }
+
+    if (period === "AM" && hours === 12) {
+      hours = 0;
+    }
+
+    return hours * 60 + minutes;
+  };
+
+  /* Show success message */
+  const showSuccessMessage = (message) => {
+    setSuccessMessage(message);
+
+    setTimeout(() => {
+      setSuccessMessage("");
+    }, 3000);
+  };
+
+  /* Get appointment status */
+  const getAppointmentStatus = (booking) => {
+    return booking.status || "Pending";
+  };
+
+  /* Load appointments */
+  const loadAppointments = useCallback(() => {
     const savedBookings =
-      JSON.parse(localStorage.getItem("advocaOneBookings")) || [];
+      JSON.parse(
+        localStorage.getItem("advocaOneBookings")
+      ) || [];
 
-    return savedBookings.map((booking, index) => ({
-      ...booking,
-      id: booking.id || index + 1,
-      client:
-        booking.client ||
-        booking.clientName ||
-        booking.name ||
-        booking.userName ||
-        "Client",
-      date:
-        booking.date ||
-        booking.bookingDate ||
-        "Date not available",
-      time:
-        booking.time ||
-        booking.bookingTime ||
-        "Time not available",
-      type:
-        booking.type ||
-        booking.consultationType ||
-        booking.mode ||
-        "Online",
-      reason:
-        booking.reason ||
-        booking.message ||
-        booking.consultationReason ||
-        "Consultation",
-      fee: Number(booking.fee || booking.consultationFee || 0),
-      status: booking.status || "Pending",
-    }));
-  });
+    const lawyerBookings = savedBookings.filter(
+      (booking) =>
+        String(booking.lawyerId) ===
+        String(currentLawyer.id)
+    );
 
-  const updateLawyerStatus = (field, value) => {
-    const lawyers =
-      JSON.parse(localStorage.getItem("advocaOneAdminLawyers")) || [];
+    const formattedAppointments =
+      lawyerBookings.map((booking, index) => ({
+        ...booking,
 
-    const updatedLawyers = lawyers.map((lawyer) => {
-      if (lawyer.id === currentLawyer?.id) {
-        return {
-          ...lawyer,
-          [field]: value,
-        };
-      }
+        id:
+          booking.id ||
+          index + 1,
 
-      return lawyer;
-    });
+        client:
+          booking.client ||
+          booking.clientName ||
+          booking.name ||
+          booking.userName ||
+          "Client",
+
+        userEmail:
+          booking.userEmail ||
+          "Not provided",
+
+        userPhone:
+          booking.userPhone ||
+          "Not provided",
+
+        date:
+          booking.date ||
+          booking.bookingDate ||
+          "",
+
+        time:
+          booking.time ||
+          booking.bookingTime ||
+          "",
+
+        type:
+          booking.type ||
+          booking.consultationType ||
+          booking.mode ||
+          "Online",
+
+        reason:
+          booking.reason ||
+          booking.message ||
+          booking.consultationReason ||
+          "Consultation",
+
+        fee: Number(
+          booking.fee ||
+            booking.consultationFee ||
+            0
+        ),
+
+        status:
+          getAppointmentStatus(booking),
+      }));
+
+    setAppointments(formattedAppointments);
+    setLastUpdated(new Date());
+  }, [currentLawyer.id]);
+
+  /* Load appointments when dashboard opens */
+  useEffect(() => {
+    loadAppointments();
+
+    const interval = setInterval(() => {
+      loadAppointments();
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [loadAppointments]);
+
+  /* Create notifications for pending bookings */
+  useEffect(() => {
+    const savedNotifications =
+      JSON.parse(
+        localStorage.getItem(
+          "advocaOneNotifications"
+        )
+      ) || [];
+
+    const notificationIds = new Set(
+      savedNotifications.map(
+        (notification) =>
+          String(notification.appointmentId)
+      )
+    );
+
+    const newNotifications = appointments
+      .filter(
+        (appointment) =>
+          appointment.status === "Pending"
+      )
+      .filter(
+        (appointment) =>
+          !notificationIds.has(
+            String(appointment.id)
+          )
+      )
+      .map((appointment) => ({
+        id: `notification-${appointment.id}`,
+        appointmentId: appointment.id,
+        title: "New Booking Request",
+        message:
+          `${appointment.client} requested an appointment ` +
+          `on ${appointment.date} at ${appointment.time}.`,
+        read: false,
+        createdAt: new Date().toISOString(),
+      }));
+
+    const updatedNotifications = [
+      ...newNotifications,
+      ...savedNotifications,
+    ];
+
+    setNotifications(updatedNotifications);
 
     localStorage.setItem(
-      "advocaOneAdminLawyers",
-      JSON.stringify(updatedLawyers)
+      "advocaOneNotifications",
+      JSON.stringify(updatedNotifications)
+    );
+  }, [appointments]);
+
+  /* Mark all notifications as read */
+  const markAllNotificationsRead = () => {
+    const updatedNotifications =
+      notifications.map((notification) => ({
+        ...notification,
+        read: true,
+      }));
+
+    setNotifications(updatedNotifications);
+
+    localStorage.setItem(
+      "advocaOneNotifications",
+      JSON.stringify(updatedNotifications)
     );
   };
 
-  const changeOnlineStatus = (status) => {
-    setOnlineStatus(status);
-    updateLawyerStatus("onlineStatus", status);
+  /* Mark one notification as read */
+  const markNotificationRead = (notificationId) => {
+    const updatedNotifications =
+      notifications.map((notification) =>
+        notification.id === notificationId
+          ? {
+              ...notification,
+              read: true,
+            }
+          : notification
+      );
+
+    setNotifications(updatedNotifications);
+
+    localStorage.setItem(
+      "advocaOneNotifications",
+      JSON.stringify(updatedNotifications)
+    );
   };
 
-  const changeAppointmentStatus = (status) => {
-    setAppointmentStatus(status);
-    updateLawyerStatus("appointmentStatus", status);
-  };
+  const unreadNotifications =
+    notifications.filter(
+      (notification) => !notification.read
+    ).length;
 
-  const updateAppointment = (id, status) => {
+  /* Update appointment status */
+  const updateAppointment = (
+    id,
+    status
+  ) => {
     const savedBookings =
-      JSON.parse(localStorage.getItem("advocaOneBookings")) || [];
+      JSON.parse(
+        localStorage.getItem(
+          "advocaOneBookings"
+        )
+      ) || [];
 
-    const updatedBookings = savedBookings.map((booking) =>
-      String(booking.id) === String(id)
-        ? {
-            ...booking,
-            status,
-          }
-        : booking
-    );
+    const updatedBookings =
+      savedBookings.map((booking) =>
+        String(booking.id) === String(id)
+          ? {
+              ...booking,
+              status,
+            }
+          : booking
+      );
 
     localStorage.setItem(
       "advocaOneBookings",
       JSON.stringify(updatedBookings)
     );
 
-    const updatedAppointments = appointments.map((appointment) =>
-      String(appointment.id) === String(id)
-        ? {
-            ...appointment,
-            status,
-          }
-        : appointment
+    setAppointments((currentAppointments) =>
+      currentAppointments.map(
+        (appointment) =>
+          String(appointment.id) ===
+          String(id)
+            ? {
+                ...appointment,
+                status,
+              }
+            : appointment
+      )
     );
 
-    setAppointments(updatedAppointments);
+    setLastUpdated(new Date());
+
+    if (status === "Confirmed") {
+      showSuccessMessage(
+        "✅ Appointment confirmed successfully."
+      );
+    } else if (status === "Rejected") {
+      showSuccessMessage(
+        "❌ Appointment rejected successfully."
+      );
+    } else if (status === "Completed") {
+      showSuccessMessage(
+        "🏁 Appointment marked as completed."
+      );
+    } else if (status === "Cancelled") {
+      showSuccessMessage(
+        "❌ Appointment cancelled successfully."
+      );
+    }
   };
 
-  const pendingCount = appointments.filter(
-    (appointment) => appointment.status === "Pending"
-  ).length;
+  /* Confirm appointment */
+  const handleConfirm = (appointment) => {
+    const confirmed = window.confirm(
+      `Confirm appointment with ${appointment.client}?`
+    );
 
-  const confirmedCount = appointments.filter(
-    (appointment) => appointment.status === "Confirmed"
-  ).length;
+    if (!confirmed) {
+      return;
+    }
 
-  const completedCount = appointments.filter(
-  (appointment) => appointment.status === "Completed"
-).length;
+    updateAppointment(
+      appointment.id,
+      "Confirmed"
+    );
+  };
 
-  const estimatedEarnings = appointments
-    .filter((appointment) => appointment.status === "Confirmed")
-    .reduce((total, appointment) => total + Number(appointment.fee || 0), 0);
+  /* Reject appointment */
+  const handleReject = (appointment) => {
+    const confirmed = window.confirm(
+      `Reject appointment with ${appointment.client}?`
+    );
 
-  const today = new Date();
+    if (!confirmed) {
+      return;
+    }
 
-  const todayString = today.toISOString().split("T")[0];
+    updateAppointment(
+      appointment.id,
+      "Rejected"
+    );
+  };
 
-  const todaysAppointments = appointments.filter(
-    (appointment) => appointment.date === todayString
+  /* Cancel appointment */
+  const handleCancel = (appointment) => {
+    const confirmed = window.confirm(
+      `Cancel appointment with ${appointment.client}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    updateAppointment(
+      appointment.id,
+      "Cancelled"
+    );
+  };
+
+  /* Get day name */
+  const getDayName = (dateString) => {
+    if (!dateString) {
+      return "";
+    }
+
+    const date = new Date(
+      `${dateString}T00:00:00`
+    );
+
+    return date.toLocaleDateString(
+      "en-US",
+      {
+        weekday: "long",
+      }
+    );
+  };
+
+  /* Get available time slots */
+  const getAvailableSlots = () => {
+    if (!newDate) {
+      return [];
+    }
+
+    const availability =
+      JSON.parse(
+        localStorage.getItem(
+          "advocaOneAvailability"
+        )
+      ) || {};
+
+    const day = getDayName(newDate);
+
+    return availability[day] || [];
+  };
+
+  /* Open reschedule modal */
+  const openReschedule = (appointment) => {
+    setRescheduleAppointment(appointment);
+
+    setNewDate(
+      appointment.date || ""
+    );
+
+    setNewTime(
+      appointment.time || ""
+    );
+  };
+
+  /* Save rescheduled appointment */
+  const handleReschedule = () => {
+    if (!rescheduleAppointment) {
+      return;
+    }
+
+    if (!newDate || !newTime) {
+      alert("Please select date and time.");
+      return;
+    }
+
+    const today = getToday();
+
+    if (newDate < today) {
+      alert("Please select a future date.");
+      return;
+    }
+
+    const availableSlots =
+      getAvailableSlots();
+
+    if (
+      availableSlots.length > 0 &&
+      !availableSlots.includes(newTime)
+    ) {
+      alert(
+        "Selected time is not available."
+      );
+      return;
+    }
+
+    /* Prevent past time today */
+    if (newDate === today) {
+      const now = new Date();
+
+      const currentMinutes =
+        now.getHours() * 60 +
+        now.getMinutes();
+
+      if (
+        getTimeInMinutes(newTime) <=
+        currentMinutes
+      ) {
+        alert(
+          "Please select a future time."
+        );
+        return;
+      }
+    }
+
+    /* Prevent double booking */
+    const duplicate = appointments.some(
+      (appointment) =>
+        String(appointment.id) !==
+          String(
+            rescheduleAppointment.id
+          ) &&
+        String(appointment.lawyerId) ===
+          String(
+            rescheduleAppointment.lawyerId
+          ) &&
+        appointment.date === newDate &&
+        appointment.time === newTime &&
+        appointment.status !==
+          "Cancelled" &&
+        appointment.status !==
+          "Rejected"
+    );
+
+    if (duplicate) {
+      alert(
+        "This time slot is already booked."
+      );
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Reschedule ${rescheduleAppointment.client}'s appointment to ${newDate} at ${newTime}?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const savedBookings =
+      JSON.parse(
+        localStorage.getItem(
+          "advocaOneBookings"
+        )
+      ) || [];
+
+    const updatedBookings =
+      savedBookings.map((booking) =>
+        String(booking.id) ===
+        String(
+          rescheduleAppointment.id
+        )
+          ? {
+              ...booking,
+              date: newDate,
+              day: getDayName(newDate),
+              time: newTime,
+              status: "Confirmed",
+            }
+          : booking
+      );
+
+    localStorage.setItem(
+      "advocaOneBookings",
+      JSON.stringify(updatedBookings)
+    );
+
+    setRescheduleAppointment(null);
+    setNewDate("");
+    setNewTime("");
+
+    loadAppointments();
+
+    showSuccessMessage(
+      "📅 Appointment rescheduled successfully."
+    );
+  };
+
+  /* Appointment counters */
+  const totalAppointments =
+    appointments.length;
+
+  const pendingAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Pending"
+    );
+
+  const confirmedAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Confirmed"
+    );
+
+  const completedAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Completed"
+    );
+
+  const rejectedAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Rejected"
+    );
+
+  const cancelledAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Cancelled"
+    );
+
+  /* Earnings */
+  const earningAppointments =
+    appointments.filter(
+      (appointment) =>
+        appointment.status === "Confirmed" ||
+        appointment.status === "Completed"
+    );
+
+  const totalEarnings =
+    earningAppointments.reduce(
+      (total, appointment) =>
+        total +
+        Number(appointment.fee || 0),
+      0
+    );
+
+  const currentDate = new Date();
+
+  const currentMonth =
+    currentDate.getMonth();
+
+  const currentYear =
+    currentDate.getFullYear();
+
+  const monthlyEarnings =
+    earningAppointments
+      .filter((appointment) => {
+        if (!appointment.date) {
+          return false;
+        }
+
+        const date = new Date(
+          `${appointment.date}T00:00:00`
+        );
+
+        return (
+          date.getMonth() ===
+            currentMonth &&
+          date.getFullYear() ===
+            currentYear
+        );
+      })
+      .reduce(
+        (total, appointment) =>
+          total +
+          Number(appointment.fee || 0),
+        0
+      );
+
+  /* Today's appointments */
+  const todayAppointments =
+    appointments
+      .filter(
+        (appointment) =>
+          appointment.date ===
+            getToday() &&
+          appointment.status !==
+            "Cancelled" &&
+          appointment.status !==
+            "Rejected"
+      )
+      .sort(
+        (a, b) =>
+          getTimeInMinutes(a.time) -
+          getTimeInMinutes(b.time)
+      );
+
+  /* Upcoming appointments */
+  const upcomingAppointments =
+    appointments
+      .filter(
+        (appointment) =>
+          appointment.date >
+            getToday() &&
+          appointment.status !==
+            "Cancelled" &&
+          appointment.status !==
+            "Rejected"
+      )
+      .sort((a, b) => {
+        const dateResult =
+          a.date.localeCompare(b.date);
+
+        if (dateResult !== 0) {
+          return dateResult;
+        }
+
+        return (
+          getTimeInMinutes(a.time) -
+          getTimeInMinutes(b.time)
+        );
+      });
+
+  /* Past appointments */
+  const pastAppointments =
+    appointments
+      .filter(
+        (appointment) =>
+          appointment.date <
+          getToday()
+      )
+      .sort((a, b) =>
+        b.date.localeCompare(a.date)
+      );
+
+  /* Search and filter */
+  const filteredAppointments =
+    useMemo(() => {
+      return appointments.filter(
+        (appointment) => {
+          const search =
+            searchTerm.toLowerCase();
+
+          const matchesSearch =
+            appointment.client
+              ?.toLowerCase()
+              .includes(search) ||
+            appointment.userEmail
+              ?.toLowerCase()
+              .includes(search) ||
+            appointment.userPhone
+              ?.toLowerCase()
+              .includes(search) ||
+            appointment.reason
+              ?.toLowerCase()
+              .includes(search);
+
+          const matchesStatus =
+            statusFilter === "All" ||
+            appointment.status ===
+              statusFilter;
+
+          return (
+            matchesSearch &&
+            matchesStatus
+          );
+        }
+      );
+    }, [
+      appointments,
+      searchTerm,
+      statusFilter,
+    ]);
+
+  /* Statistics */
+  const statistics = [
+    {
+      name: "Pending",
+      count:
+        pendingAppointments.length,
+    },
+    {
+      name: "Confirmed",
+      count:
+        confirmedAppointments.length,
+    },
+    {
+      name: "Completed",
+      count:
+        completedAppointments.length,
+    },
+    {
+      name: "Rejected",
+      count:
+        rejectedAppointments.length,
+    },
+    {
+      name: "Cancelled",
+      count:
+        cancelledAppointments.length,
+    },
+  ];
+
+  const maxStatistic = Math.max(
+    ...statistics.map(
+      (item) => item.count
+    ),
+    1
   );
 
-  const onlineStatusClass =
-    onlineStatus === "Online"
-      ? "bg-success"
-      : onlineStatus === "Away"
-      ? "bg-warning text-dark"
-      : "bg-danger";
+  /* View pending appointments */
+  const viewPending = () => {
+    setStatusFilter("Pending");
 
-  const appointmentStatusClass =
-    appointmentStatus === "Accepting Appointments"
-      ? "bg-success"
-      : appointmentStatus === "Busy"
-      ? "bg-warning text-dark"
-      : "bg-danger";
+    setTimeout(() => {
+      document
+        .getElementById(
+          "all-appointments"
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+        });
+    }, 100);
+  };
 
-  return (
-    <div className="lawyer-dashboard-page">
-      <div className="container py-5">
+  /* Appointment card */
+  const AppointmentCard = ({
+    appointment,
+  }) => {
+    const statusClass =
+      appointment.status
+        .toLowerCase()
+        .replace(/\s+/g, "-");
 
-        <div className="d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <h2>Lawyer Dashboard</h2>
-            <p className="text-muted">
-              Manage your profile, availability and client appointments.
-            </p>
-          </div>
+    return (
+      <div className="appointment-card">
 
-          <Link to="/" className="btn btn-outline-primary">
-            Home
-          </Link>
-        </div>
+        <div className="appointment-main">
 
-        <div className="row g-4 mb-4">
+          <div className="appointment-client">
 
-          <div className="col-md-3">
-            <div className="card shadow-sm p-4 h-100">
-              <h6 className="text-muted">Total Appointments</h6>
-              <h2>{appointments.length}</h2>
-              <p className="mb-0">📅 All appointments</p>
+            <div className="client-avatar">
+              👤
             </div>
+
+            <div>
+              <h3>
+                {appointment.client}
+              </h3>
+
+              <p>
+                {appointment.userEmail}
+              </p>
+            </div>
+
           </div>
 
-          <div className="col-md-3">
-            <div className="card shadow-sm p-4 h-100">
-              <h6 className="text-muted">Pending</h6>
-              <h2>{pendingCount}</h2>
-              <p className="mb-0">⏳ Need action</p>
-            </div>
-          </div>
-
-          <div className="col-md-3">
-            <div className="card shadow-sm p-4 h-100">
-              <h6 className="text-muted">Confirmed</h6>
-              <h2>{confirmedCount}</h2>
-              <p className="mb-0">✅ Confirmed appointments</p>
-            </div>
-          </div>
-
-          <div className="col-md-3">
-            <div className="card shadow-sm p-4 h-100">
-              <h6 className="text-muted">Completed</h6>
-              <h2> {completedCount}</h2>
-                  <p className="mb-0">🏁 Completed appointments</p>
-            </div>
-          </div>
-
-          <div className="col-md-3">
-            <div className="card shadow-sm p-4 h-100">
-              <h6 className="text-muted">Estimated Earnings</h6>
-              <h2>₹{estimatedEarnings}</h2>
-              <p className="mb-0">💰 Confirmed appointments</p>
-            </div>
-          </div>
+          <span
+            className={`status-badge status-${statusClass}`}
+          >
+            {appointment.status}
+          </span>
 
         </div>
 
-        <div className="row g-4 mb-4">
+        <div className="appointment-info">
 
-          <div className="col-md-6">
-            <div className="card shadow-sm p-4 h-100">
+          <span>
+            📅 {appointment.date ||
+              "Date not available"}
+          </span>
 
-              <h5>🟢 Online Status</h5>
+          <span>
+            ⏰ {appointment.time ||
+              "Time not available"}
+          </span>
 
-              <p className="text-muted">
-                Show clients whether you are currently online.
-              </p>
+          <span>
+            💻 {appointment.type}
+          </span>
 
-              <div className="d-flex gap-2 flex-wrap">
-
-                <button
-                  className={
-                    onlineStatus === "Online"
-                      ? "btn btn-success"
-                      : "btn btn-outline-success"
-                  }
-                  onClick={() => changeOnlineStatus("Online")}
-                >
-                  🟢 Online
-                </button>
-
-                <button
-                  className={
-                    onlineStatus === "Away"
-                      ? "btn btn-warning"
-                      : "btn btn-outline-warning"
-                  }
-                  onClick={() => changeOnlineStatus("Away")}
-                >
-                  🟡 Away
-                </button>
-
-                <button
-                  className={
-                    onlineStatus === "Offline"
-                      ? "btn btn-danger"
-                      : "btn btn-outline-danger"
-                  }
-                  onClick={() => changeOnlineStatus("Offline")}
-                >
-                  🔴 Offline
-                </button>
-
-              </div>
-
-              <p className="mt-3 mb-0">
-                <strong>Current Status:</strong>{" "}
-                <span className={`badge ${onlineStatusClass}`}>
-                  {onlineStatus}
-                </span>
-              </p>
-
-            </div>
-          </div>
-
-          <div className="col-md-6">
-            <div className="card shadow-sm p-4 h-100">
-
-              <h5>📅 Appointment Status</h5>
-
-              <p className="text-muted">
-                Control whether clients can book new appointments.
-              </p>
-
-              <div className="d-flex gap-2 flex-wrap">
-
-                <button
-                  className={
-                    appointmentStatus === "Accepting Appointments"
-                      ? "btn btn-success"
-                      : "btn btn-outline-success"
-                  }
-                  onClick={() =>
-                    changeAppointmentStatus(
-                      "Accepting Appointments"
-                    )
-                  }
-                >
-                  🟢 Accepting Appointments
-                </button>
-
-                <button
-                  className={
-                    appointmentStatus === "Busy"
-                      ? "btn btn-warning"
-                      : "btn btn-outline-warning"
-                  }
-                  onClick={() => changeAppointmentStatus("Busy")}
-                >
-                  🟡 Busy
-                </button>
-
-                <button
-                  className={
-                    appointmentStatus === "Not Accepting"
-                      ? "btn btn-danger"
-                      : "btn btn-outline-danger"
-                  }
-                  onClick={() =>
-                    changeAppointmentStatus("Not Accepting")
-                  }
-                >
-                  🔴 Not Accepting
-                </button>
-
-              </div>
-
-              <p className="mt-3 mb-0">
-                <strong>Current Status:</strong>{" "}
-                <span className={`badge ${appointmentStatusClass}`}>
-                  {appointmentStatus}
-                </span>
-              </p>
-
-            </div>
-          </div>
+          <span>
+            💰 ₹{appointment.fee}
+          </span>
 
         </div>
 
-        <div className="card shadow-sm p-4 mb-4">
+        <div className="appointment-actions">
 
-          <h4>📅 Today's Appointments</h4>
+          <button
+            className="lawyer-btn lawyer-btn-secondary"
+            onClick={() =>
+              setSelectedAppointment(
+                appointment
+              )
+            }
+          >
+            📅 Details
+          </button>
 
-          <p className="text-muted">
-            Appointments scheduled for today.
-          </p>
+          <button
+            className="lawyer-btn lawyer-btn-secondary"
+            onClick={() =>
+              setSelectedClient(
+                appointment
+              )
+            }
+          >
+            👤 Client
+          </button>
 
-          {todaysAppointments.length === 0 ? (
-            <div className="alert alert-light border mb-0">
-              No appointments scheduled for today.
-            </div>
-          ) : (
-            <div className="row g-3">
+          {appointment.status ===
+            "Pending" && (
+            <>
+              <button
+                className="lawyer-btn lawyer-btn-success"
+                onClick={() =>
+                  handleConfirm(
+                    appointment
+                  )
+                }
+              >
+                ✅ Confirm
+              </button>
 
-              {todaysAppointments.map((appointment) => (
-                <div
-                  className="col-md-6"
-                  key={appointment.id}
-                >
-                  <div className="card border shadow-sm h-100">
-                    <div className="card-body">
+              <button
+                className="lawyer-btn lawyer-btn-danger"
+                onClick={() =>
+                  handleReject(
+                    appointment
+                  )
+                }
+              >
+                ❌ Reject
+              </button>
+            </>
+          )}
 
-                      <div className="d-flex justify-content-between align-items-start">
+          {appointment.status ===
+            "Confirmed" && (
+            <>
+              <button
+                className="lawyer-btn lawyer-btn-success"
+                onClick={() =>
+                  updateAppointment(
+                    appointment.id,
+                    "Completed"
+                  )
+                }
+              >
+                🏁 Complete
+              </button>
 
-                        <div>
-                          <h5 className="mb-1">
-                            {appointment.client}
-                          </h5>
+              <button
+                className="lawyer-btn lawyer-btn-warning"
+                onClick={() =>
+                  openReschedule(
+                    appointment
+                  )
+                }
+              >
+                ✏️ Reschedule
+              </button>
 
-                          <p className="text-muted mb-2">
-                            🕐 {appointment.time}
-                          </p>
-                        </div>
-
-                        <span
-                          className={`badge ${
-                            appointment.status === "Confirmed"
-                              ? "bg-success"
-                              : appointment.status === "Rejected" ||
-                                appointment.status === "Cancelled"
-                              ? "bg-danger"
-                              : "bg-warning text-dark"
-                          }`}
-                        >
-                          {appointment.status}
-                        </span>
-
-                      </div>
-
-                      <p className="mb-1">
-                        <strong>Consultation:</strong>{" "}
-                        {appointment.type}
-                      </p>
-
-                      <p className="mb-1">
-                        <strong>Reason:</strong>{" "}
-                        {appointment.reason}
-                      </p>
-
-                      <p className="mb-0">
-                        <strong>Fee:</strong>{" "}
-                        ₹{appointment.fee}
-                      </p>
-
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-            </div>
+              <button
+                className="lawyer-btn lawyer-btn-danger"
+                onClick={() =>
+                  handleCancel(
+                    appointment
+                  )
+                }
+              >
+                ❌ Cancel
+              </button>
+            </>
           )}
 
         </div>
 
-        <div className="card shadow-sm p-4 mb-4">
+      </div>
+    );
+  };
 
-          <h4>📋 All Appointments</h4>
+  return (
+    <div className="lawyer-dashboard">
 
-          <p className="text-muted">
-            Manage your client consultation requests.
+      {/* Header */}
+
+      <div className="lawyer-dashboard-header">
+
+        <div className="lawyer-dashboard-title">
+
+          <h1>
+            Lawyer Dashboard
+          </h1>
+
+          <p>
+            Welcome,{" "}
+            <strong>
+              {currentLawyer.name}
+            </strong>
           </p>
 
-          <div className="table-responsive">
+        </div>
 
-            <table className="table table-bordered align-middle">
+        <div className="lawyer-dashboard-actions">
 
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Type</th>
-                  <th>Reason</th>
-                  <th>Fee</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
+          {/* Notifications */}
 
-              <tbody>
+          <div className="notification-wrapper">
 
-                {appointments.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="text-center">
-                      No appointments found.
-                    </td>
-                  </tr>
+            <button
+              className="notification-button"
+              onClick={() =>
+                setShowNotifications(
+                  !showNotifications
+                )
+              }
+            >
+              🔔
+
+              {unreadNotifications >
+                0 && (
+                <span className="notification-count">
+                  {unreadNotifications}
+                </span>
+              )}
+
+            </button>
+
+            {showNotifications && (
+              <div className="notification-dropdown">
+
+                <div className="notification-header">
+
+                  <h3>
+                    Notifications
+                  </h3>
+
+                  <button
+                    className="notification-read-button"
+                    onClick={
+                      markAllNotificationsRead
+                    }
+                  >
+                    Mark all read
+                  </button>
+
+                </div>
+
+                {notifications.length ===
+                0 ? (
+                  <div className="empty-state">
+                    <div className="empty-state-icon">
+                      🔔
+                    </div>
+
+                    <p>
+                      No notifications.
+                    </p>
+                  </div>
                 ) : (
-                  appointments.map((appointment) => (
-                    <tr key={appointment.id}>
-
-                      <td>
-                        <strong>{appointment.client}</strong>
-                      </td>
-
-                      <td>{appointment.date}</td>
-
-                      <td>{appointment.time}</td>
-
-                      <td>{appointment.type}</td>
-
-                      <td>{appointment.reason}</td>
-
-                      <td>₹{appointment.fee}</td>
-
-                      <td>
-                        <span
-                          className={`badge ${
-                            appointment.status === "Confirmed"
-                              ? "bg-success"
-                              : appointment.status === "Rejected"
-                              ? "bg-danger"
-                              : appointment.status === "Cancelled"
-                              ? "bg-danger"
-                              : "bg-warning text-dark"
+                  notifications
+                    .slice(0, 8)
+                    .map(
+                      (notification) => (
+                        <div
+                          key={
+                            notification.id
+                          }
+                          className={`notification-item ${
+                            notification.read
+                              ? ""
+                              : "unread"
                           }`}
+                          onClick={() => {
+                            markNotificationRead(
+                              notification.id
+                            );
+
+                            const appointment =
+                              appointments.find(
+                                (item) =>
+                                  String(
+                                    item.id
+                                  ) ===
+                                  String(
+                                    notification.appointmentId
+                                  )
+                              );
+
+                            if (appointment) {
+                              setSelectedAppointment(
+                                appointment
+                              );
+
+                              setShowNotifications(
+                                false
+                              );
+                            }
+                          }}
                         >
-                          {appointment.status}
-                        </span>
-                      </td>
 
-                      <td>
-                        {appointment.status === "Pending" ? (
-                          <div className="d-flex gap-2">
+                          <strong>
+                            {
+                              notification.title
+                            }
+                          </strong>
 
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() =>
-                                updateAppointment(
-                                  appointment.id,
-                                  "Confirmed"
-                                )
-                              }
-                            >
-                              ✓ Confirm
-                            </button>
+                          <p>
+                            {
+                              notification.message
+                            }
+                          </p>
 
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() =>
-                                updateAppointment(
-                                  appointment.id,
-                                  "Rejected"
-                                )
-                              }
-                            >
-                              ✕ Reject
-                            </button>
-
-                          </div>
-                        ) : (
-                          <span className="text-muted">
-                            {appointment.status}
-                          </span>
-                        )}
-                      </td>
-
-                    </tr>
-                  ))
+                        </div>
+                      )
+                    )
                 )}
 
-              </tbody>
+              </div>
+            )}
 
-            </table>
+          </div>
+
+          <button
+            className="lawyer-btn lawyer-btn-primary"
+            onClick={() => {
+              loadAppointments();
+
+              showSuccessMessage(
+                "🔄 Appointments refreshed."
+              );
+            }}
+          >
+            🔄 Refresh
+          </button>
+
+          <button
+            className="lawyer-btn lawyer-btn-secondary"
+            onClick={() =>
+              navigate("/")
+            }
+          >
+            🏠 Home
+          </button>
+
+        </div>
+
+      </div>
+
+      {/* Last updated */}
+
+      <p>
+        Last updated:{" "}
+        {lastUpdated
+          ? lastUpdated.toLocaleTimeString()
+          : "Loading..."}
+      </p>
+
+      {/* Success message */}
+
+      {successMessage && (
+        <div className="dashboard-success">
+          {successMessage}
+        </div>
+      )}
+
+      {/* Pending alert */}
+
+      {pendingAppointments.length >
+        0 && (
+        <div className="pending-alert">
+
+          <div className="pending-alert-content">
+
+            <div>
+              <h3>
+                🔔 New Booking Requests
+              </h3>
+
+              <p>
+                You have{" "}
+                {
+                  pendingAppointments.length
+                }{" "}
+                pending booking request
+                {pendingAppointments.length >
+                1
+                  ? "s"
+                  : ""}.
+              </p>
+            </div>
+
+            <button
+              className="lawyer-btn lawyer-btn-warning"
+              onClick={viewPending}
+            >
+              View Pending
+            </button>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* Statistics cards */}
+
+<div className="dashboard-stats">
+
+  {/* First Row - 3 Cards */}
+
+  <div className="dashboard-stats-row dashboard-stats-row-top">
+
+    {/* Total Appointments */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          📅
+        </span>
+      </div>
+
+      <h4>
+        Total Appointments
+      </h4>
+
+      <h2>
+        {totalAppointments}
+      </h2>
+
+      <p>
+        All appointments
+      </p>
+
+    </div>
+
+    {/* Pending */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          ⏳
+        </span>
+      </div>
+
+      <h4>
+        Pending
+      </h4>
+
+      <h2>
+        {pendingAppointments.length}
+      </h2>
+
+      <p>
+        Need action
+      </p>
+
+    </div>
+
+    {/* Confirmed */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          ✅
+        </span>
+      </div>
+
+      <h4>
+        Confirmed
+      </h4>
+
+      <h2>
+        {confirmedAppointments.length}
+      </h2>
+
+      <p>
+        Confirmed appointments
+      </p>
+
+    </div>
+
+  </div>
+
+
+  {/* Second Row - 4 Cards */}
+
+  <div className="dashboard-stats-row dashboard-stats-row-bottom">
+
+    {/* Completed */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          🏁
+        </span>
+      </div>
+
+      <h4>
+        Completed
+      </h4>
+
+      <h2>
+        {completedAppointments.length}
+      </h2>
+
+      <p>
+        Finished
+      </p>
+
+    </div>
+
+    {/* Rejected */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          ❌
+        </span>
+      </div>
+
+      <h4>
+        Rejected
+      </h4>
+
+      <h2>
+        {rejectedAppointments.length}
+      </h2>
+
+      <p>
+        Rejected requests
+      </p>
+
+    </div>
+
+    {/* Cancelled */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          🚫
+        </span>
+      </div>
+
+      <h4>
+        Cancelled
+      </h4>
+
+      <h2>
+        {cancelledAppointments.length}
+      </h2>
+
+      <p>
+        Cancelled appointments
+      </p>
+
+    </div>
+
+    {/* Estimated Earnings */}
+
+    <div className="dashboard-stat-card">
+
+      <div className="stat-top">
+        <span className="stat-icon">
+          💰
+        </span>
+      </div>
+
+      <h4>
+        Estimated Earnings
+      </h4>
+
+      <h2>
+        ₹{totalEarnings}
+      </h2>
+
+      <p>
+        Confirmed + completed
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+
+      {/* Appointment overview */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              📅 Appointment Overview
+            </h2>
+
+            <p>
+              Quick overview of your appointments
+            </p>
+          </div>
+
+        </div>
+
+        <div className="overview-grid">
+
+          <div className="overview-card">
+            <h4>
+              Today's Appointments
+            </h4>
+
+            <h2>
+              {todayAppointments.length}
+            </h2>
+          </div>
+
+          <div className="overview-card">
+            <h4>
+              Upcoming Appointments
+            </h4>
+
+            <h2>
+              {upcomingAppointments.length}
+            </h2>
+          </div>
+
+          <div className="overview-card">
+            <h4>
+              Total Appointments
+            </h4>
+
+            <h2>
+              {totalAppointments}
+            </h2>
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* Lawyer status */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              🟢 Lawyer Status
+            </h2>
+
+            <p>
+              Control your availability status
+            </p>
+          </div>
+
+        </div>
+
+        <div className="status-grid">
+
+          <div className="status-box">
+
+            <h3>
+              Online Status
+            </h3>
+
+            <select
+              className="status-select"
+              value={onlineStatus}
+              onChange={(event) =>
+                setOnlineStatus(
+                  event.target.value
+                )
+              }
+            >
+              <option>
+                Online
+              </option>
+
+              <option>
+                Away
+              </option>
+
+              <option>
+                Offline
+              </option>
+            </select>
+
+          </div>
+
+          <div className="status-box">
+
+            <h3>
+              Appointment Status
+            </h3>
+
+            <select
+              className="status-select"
+              value={appointmentStatus}
+              onChange={(event) =>
+                setAppointmentStatus(
+                  event.target.value
+                )
+              }
+            >
+              <option>
+                Accepting Appointments
+              </option>
+
+              <option>
+                Busy
+              </option>
+
+              <option>
+                Not Accepting Appointments
+              </option>
+            </select>
 
           </div>
 
         </div>
 
-        <div className="d-flex gap-3 flex-wrap">
+      </section>
 
-          <Link
-            to="/lawyer-profile-manage"
-            className="btn btn-primary"
-          >
-            👤 Manage Profile
-          </Link>
+      {/* Earnings */}
 
-          <Link
-            to="/manage-availability"
-            className="btn btn-outline-primary"
-          >
-            📅 Manage Availability
-          </Link>
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              💰 Earnings Summary
+            </h2>
+
+            <p>
+              Your appointment earnings
+            </p>
+          </div>
 
         </div>
 
-      </div>
+        <div className="earnings-grid">
+
+          <div className="earning-card">
+            <h4>
+              This Month
+            </h4>
+
+            <h2>
+              ₹{monthlyEarnings}
+            </h2>
+          </div>
+
+          <div className="earning-card">
+            <h4>
+              Total Earnings
+            </h4>
+
+            <h2>
+              ₹{totalEarnings}
+            </h2>
+          </div>
+
+          <div className="earning-card">
+            <h4>
+              Paid Appointments
+            </h4>
+
+            <h2>
+              {earningAppointments.length}
+            </h2>
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* Statistics chart */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              📈 Dashboard Statistics
+            </h2>
+
+            <p>
+              Appointment status overview
+            </p>
+          </div>
+
+        </div>
+
+        <div className="statistics-chart">
+
+          {statistics.map((item) => {
+            const height =
+              item.count === 0
+                ? 5
+                : (item.count /
+                    maxStatistic) *
+                  180;
+
+            return (
+              <div
+                className="chart-item"
+                key={item.name}
+              >
+
+                <div className="chart-bar-area">
+
+                  <div
+                    className="chart-bar"
+                    style={{
+                      height:
+                        `${height}px`,
+                    }}
+                  >
+                    {item.count}
+                  </div>
+
+                </div>
+
+                <p>
+                  {item.name}
+                </p>
+
+              </div>
+            );
+          })}
+
+        </div>
+
+      </section>
+
+      {/* Today's appointments */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              📅 Today's Appointments
+            </h2>
+
+            <p>
+              Appointments scheduled for today
+            </p>
+          </div>
+
+        </div>
+
+        {todayAppointments.length ===
+        0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              📅
+            </div>
+
+            <p>
+              No appointments today.
+            </p>
+          </div>
+        ) : (
+          todayAppointments.map(
+            (appointment) => (
+              <AppointmentCard
+                key={appointment.id}
+                appointment={appointment}
+              />
+            )
+          )
+        )}
+
+      </section>
+
+      {/* Pending requests */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              ⏳ Pending Booking Requests
+            </h2>
+
+            <p>
+              Review and manage new booking requests
+            </p>
+          </div>
+
+        </div>
+
+        {pendingAppointments.length ===
+        0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              ✅
+            </div>
+
+            <p>
+              No pending booking requests.
+            </p>
+          </div>
+        ) : (
+          pendingAppointments.map(
+            (appointment) => (
+              <AppointmentCard
+                key={appointment.id}
+                appointment={appointment}
+              />
+            )
+          )
+        )}
+
+      </section>
+
+      {/* Upcoming appointments */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              📅 Upcoming Appointments
+            </h2>
+
+            <p>
+              Your future confirmed appointments
+            </p>
+          </div>
+
+        </div>
+
+        {upcomingAppointments.length ===
+        0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              📅
+            </div>
+
+            <p>
+              No upcoming appointments.
+            </p>
+          </div>
+        ) : (
+          upcomingAppointments.map(
+            (appointment) => (
+              <AppointmentCard
+                key={appointment.id}
+                appointment={appointment}
+              />
+            )
+          )
+        )}
+
+      </section>
+
+      {/* Past appointments */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              🕘 Past Appointments
+            </h2>
+
+            <p>
+              Previous appointments
+            </p>
+          </div>
+
+        </div>
+
+        {pastAppointments.length ===
+        0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              🕘
+            </div>
+
+            <p>
+              No past appointments.
+            </p>
+          </div>
+        ) : (
+          pastAppointments.map(
+            (appointment) => (
+              <AppointmentCard
+                key={appointment.id}
+                appointment={appointment}
+              />
+            )
+          )
+        )}
+
+      </section>
+
+      {/* All appointments */}
+
+      <section
+        className="dashboard-section"
+        id="all-appointments"
+      >
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              📋 All Appointments
+            </h2>
+
+            <p>
+              Search and manage all appointments
+            </p>
+          </div>
+
+        </div>
+
+        <div className="appointment-toolbar">
+
+          <input
+            className="search-input"
+            type="text"
+            placeholder="Search client, email, phone..."
+            value={searchTerm}
+            onChange={(event) =>
+              setSearchTerm(
+                event.target.value
+              )
+            }
+          />
+
+          <select
+            className="status-select"
+            value={statusFilter}
+            onChange={(event) =>
+              setStatusFilter(
+                event.target.value
+              )
+            }
+          >
+            <option>
+              All
+            </option>
+
+            <option>
+              Pending
+            </option>
+
+            <option>
+              Confirmed
+            </option>
+
+            <option>
+              Completed
+            </option>
+
+            <option>
+              Rejected
+            </option>
+
+            <option>
+              Cancelled
+            </option>
+          </select>
+
+        </div>
+
+        {filteredAppointments.length ===
+        0 ? (
+          <div className="empty-state">
+
+            <div className="empty-state-icon">
+              🔍
+            </div>
+
+            <p>
+              No appointments found.
+            </p>
+
+          </div>
+        ) : (
+          filteredAppointments.map(
+            (appointment) => (
+              <AppointmentCard
+                key={appointment.id}
+                appointment={appointment}
+              />
+            )
+          )
+        )}
+
+      </section>
+
+      {/* Lawyer profile */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+            <h2>
+              👨‍⚖️ Lawyer Profile
+            </h2>
+
+            <p>
+              Manage your professional profile
+            </p>
+          </div>
+
+        </div>
+
+        <div className="profile-card">
+
+          <div className="profile-info">
+
+            <h3>
+              {currentLawyer.name}
+            </h3>
+
+            <p>
+              Specialization:{" "}
+              {currentLawyer.specialization ||
+                "Not specified"}
+            </p>
+
+            <p>
+              Location:{" "}
+              {currentLawyer.location ||
+                "Not specified"}
+            </p>
+
+            <p>
+              Consultation Fee: ₹
+              {currentLawyer.consultationFee ||
+                0}
+            </p>
+
+          </div>
+
+          <div className="profile-actions">
+
+            <button
+              className="lawyer-btn lawyer-btn-primary"
+              onClick={() =>
+                navigate(
+                  "/lawyer-profile-manage"
+                )
+              }
+            >
+              ⚙️ Manage Profile
+            </button>
+
+            <button
+              className="lawyer-btn lawyer-btn-secondary"
+              onClick={() =>
+                navigate(
+                  "/manage-availability"
+                )
+              }
+            >
+              📅 Manage Availability
+            </button>
+
+            <button
+              className="lawyer-btn lawyer-btn-success"
+              onClick={() =>
+                navigate(
+                  `/lawyer/${currentLawyer.id}`
+                )
+              }
+            >
+              👁️ Public Profile
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* Client details modal */}
+
+      {selectedClient && (
+        <div className="dashboard-modal-overlay">
+
+          <div className="dashboard-modal">
+
+            <div className="dashboard-modal-header">
+
+              <h2>
+                👤 Client Details
+              </h2>
+
+              <button
+                className="modal-close"
+                onClick={() =>
+                  setSelectedClient(null)
+                }
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Name
+              </span>
+
+              <strong>
+                {selectedClient.client}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Email
+              </span>
+
+              <strong>
+                {selectedClient.userEmail}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Phone
+              </span>
+
+              <strong>
+                {selectedClient.userPhone}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Consultation
+              </span>
+
+              <strong>
+                {selectedClient.type}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Reason
+              </span>
+
+              <strong>
+                {selectedClient.reason}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Date
+              </span>
+
+              <strong>
+                {selectedClient.date}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Time
+              </span>
+
+              <strong>
+                {selectedClient.time}
+              </strong>
+            </div>
+
+            <div className="modal-actions">
+
+              <button
+                className="lawyer-btn lawyer-btn-secondary"
+                onClick={() =>
+                  setSelectedClient(null)
+                }
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* Appointment details modal */}
+
+      {selectedAppointment && (
+        <div className="dashboard-modal-overlay">
+
+          <div className="dashboard-modal">
+
+            <div className="dashboard-modal-header">
+
+              <h2>
+                📅 Appointment Details
+              </h2>
+
+              <button
+                className="modal-close"
+                onClick={() =>
+                  setSelectedAppointment(null)
+                }
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Client
+              </span>
+
+              <strong>
+                {selectedAppointment.client}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Email
+              </span>
+
+              <strong>
+                {selectedAppointment.userEmail}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Phone
+              </span>
+
+              <strong>
+                {selectedAppointment.userPhone}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Date
+              </span>
+
+              <strong>
+                {selectedAppointment.date}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Time
+              </span>
+
+              <strong>
+                {selectedAppointment.time}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Consultation
+              </span>
+
+              <strong>
+                {selectedAppointment.type}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Reason
+              </span>
+
+              <strong>
+                {selectedAppointment.reason}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Fee
+              </span>
+
+              <strong>
+                ₹{selectedAppointment.fee}
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Status
+              </span>
+
+              <strong>
+                {selectedAppointment.status}
+              </strong>
+            </div>
+
+            <div className="modal-actions">
+
+              {selectedAppointment.status ===
+                "Confirmed" && (
+                <>
+                  <button
+                    className="lawyer-btn lawyer-btn-warning"
+                    onClick={() => {
+                      const appointment =
+                        selectedAppointment;
+
+                      setSelectedAppointment(
+                        null
+                      );
+
+                      openReschedule(
+                        appointment
+                      );
+                    }}
+                  >
+                    ✏️ Reschedule
+                  </button>
+
+                  <button
+                    className="lawyer-btn lawyer-btn-success"
+                    onClick={() => {
+                      updateAppointment(
+                        selectedAppointment.id,
+                        "Completed"
+                      );
+
+                      setSelectedAppointment(
+                        null
+                      );
+                    }}
+                  >
+                    🏁 Complete
+                  </button>
+
+                  <button
+                    className="lawyer-btn lawyer-btn-danger"
+                    onClick={() => {
+                      const appointment =
+                        selectedAppointment;
+
+                      setSelectedAppointment(
+                        null
+                      );
+
+                      handleCancel(
+                        appointment
+                      );
+                    }}
+                  >
+                    ❌ Cancel
+                  </button>
+                </>
+              )}
+
+              <button
+                className="lawyer-btn lawyer-btn-secondary"
+                onClick={() =>
+                  setSelectedAppointment(null)
+                }
+              >
+                Close
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* Reschedule modal */}
+
+      {rescheduleAppointment && (
+        <div className="dashboard-modal-overlay">
+
+          <div className="dashboard-modal">
+
+            <div className="dashboard-modal-header">
+
+              <h2>
+                ✏️ Reschedule Appointment
+              </h2>
+
+              <button
+                className="modal-close"
+                onClick={() => {
+                  setRescheduleAppointment(
+                    null
+                  );
+
+                  setNewDate("");
+                  setNewTime("");
+                }}
+              >
+                ×
+              </button>
+
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Client
+              </span>
+
+              <strong>
+                {
+                  rescheduleAppointment.client
+                }
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Current Date
+              </span>
+
+              <strong>
+                {
+                  rescheduleAppointment.date
+                }
+              </strong>
+            </div>
+
+            <div className="modal-detail">
+              <span>
+                Current Time
+              </span>
+
+              <strong>
+                {
+                  rescheduleAppointment.time
+                }
+              </strong>
+            </div>
+
+            <div
+              style={{
+                marginTop: "20px",
+              }}
+            >
+
+              <label>
+                New Date
+              </label>
+
+              <input
+                className="search-input"
+                type="date"
+                value={newDate}
+                min={getToday()}
+                onChange={(event) => {
+                  setNewDate(
+                    event.target.value
+                  );
+
+                  setNewTime("");
+                }}
+                style={{
+                  width: "100%",
+                  marginTop: "8px",
+                }}
+              />
+
+            </div>
+
+            <div
+              style={{
+                marginTop: "16px",
+              }}
+            >
+
+              <label>
+                New Time
+              </label>
+
+              <select
+                className="status-select"
+                value={newTime}
+                onChange={(event) =>
+                  setNewTime(
+                    event.target.value
+                  )
+                }
+                style={{
+                  marginTop: "8px",
+                }}
+              >
+
+                <option value="">
+                  Select time
+                </option>
+
+                {getAvailableSlots().map(
+                  (slot) => (
+                    <option
+                      key={slot}
+                      value={slot}
+                    >
+                      {slot}
+                    </option>
+                  )
+                )}
+
+              </select>
+
+            </div>
+
+            {newDate &&
+              getAvailableSlots()
+                .length === 0 && (
+                <p>
+                  No availability configured
+                  for this day.
+                </p>
+              )}
+
+            <div className="modal-actions">
+
+              <button
+                className="lawyer-btn lawyer-btn-primary"
+                onClick={
+                  handleReschedule
+                }
+              >
+                Save Reschedule
+              </button>
+
+              <button
+                className="lawyer-btn lawyer-btn-secondary"
+                onClick={() => {
+                  setRescheduleAppointment(
+                    null
+                  );
+
+                  setNewDate("");
+                  setNewTime("");
+                }}
+              >
+                Cancel
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
-}
+};
 
 export default LawyerDashboard;
-
