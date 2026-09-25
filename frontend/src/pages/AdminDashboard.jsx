@@ -22,7 +22,7 @@ function AdminDashboard() {
       city: "Mumbai",
       experience: 6,
       fee: 800,
-      status: "Rejected",
+      status: "Approved",
     },
     {
       id: 3,

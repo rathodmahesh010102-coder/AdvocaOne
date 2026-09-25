@@ -17,16 +17,17 @@ function Login() {
       return;
     }
 
-    if (!/\S+@\S+\.\S+/.test(email)) {
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
       alert("Please enter a valid email address");
       return;
     }
 
     navigate("/dashboard", {
-      state: {
-        name: email.split("@")[0],
-      },
-    });
+  state: {
+    name: email.split("@")[0],
+    email: email,
+  },
+});
   };
 
   return (

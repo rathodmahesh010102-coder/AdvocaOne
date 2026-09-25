@@ -6,19 +6,33 @@ function ManageAvailability() {
   const [selectedDay, setSelectedDay] = useState("Monday");
 
   const [days, setDays] = useState(() => {
-    const savedDays = localStorage.getItem("advocaOneAvailability");
+    try {
+      const savedDays = localStorage.getItem(
+        "advocaOneAvailability"
+      );
 
-    return savedDays
-      ? JSON.parse(savedDays)
-      : {
-          Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
-          Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-          Wednesday: ["11:00 AM", "3:00 PM"],
-          Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
-          Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-          Saturday: ["10:00 AM", "12:00 PM"],
-          Sunday: [],
-        };
+      return savedDays
+        ? JSON.parse(savedDays)
+        : {
+            Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
+            Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+            Wednesday: ["11:00 AM", "3:00 PM"],
+            Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
+            Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+            Saturday: ["10:00 AM", "12:00 PM"],
+            Sunday: [],
+          };
+    } catch {
+      return {
+        Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
+        Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+        Wednesday: ["11:00 AM", "3:00 PM"],
+        Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
+        Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+        Saturday: ["10:00 AM", "12:00 PM"],
+        Sunday: [],
+      };
+    }
   });
 
   const [newSlot, setNewSlot] = useState("");
@@ -124,6 +138,7 @@ function ManageAvailability() {
   return (
     <div className="lawyer-dashboard-page">
 
+      {/* Navbar */}
       <nav className="navbar navbar-dark bg-dark">
         <div className="container">
 
@@ -144,6 +159,7 @@ function ManageAvailability() {
         </div>
       </nav>
 
+      {/* Main Content */}
       <div className="container py-5">
 
         <div className="mb-4">
@@ -160,6 +176,7 @@ function ManageAvailability() {
 
         <div className="row g-4">
 
+          {/* Working Days */}
           <div className="col-md-4">
 
             <div className="card shadow-sm p-3">
@@ -184,6 +201,7 @@ function ManageAvailability() {
                   <span className="float-end">
                     {days[day].length} slots
                   </span>
+
                 </button>
 
               ))}
@@ -192,6 +210,7 @@ function ManageAvailability() {
 
           </div>
 
+          {/* Availability Slots */}
           <div className="col-md-8">
 
             <div className="card shadow-sm p-4">
@@ -253,6 +272,7 @@ function ManageAvailability() {
 
               <hr />
 
+              {/* Add Slot */}
               <h5 className="fw-bold">
                 ➕ Add New Time Slot
               </h5>
@@ -285,6 +305,7 @@ function ManageAvailability() {
 
               </div>
 
+              {/* Save */}
               <button
                 className="btn btn-success btn-lg w-100 mt-4"
                 onClick={saveAvailability}

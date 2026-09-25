@@ -11,29 +11,59 @@ import "./LawyerDashboard.css";
 const LawyerDashboard = () => {
   const navigate = useNavigate();
 
-  /* Get current lawyer */
-  const getCurrentLawyer = () => {
-    const lawyers =
+ /* Get current lawyer */
+
+const getCurrentLawyer = () => {
+  let lawyers = [];
+  let savedProfile = null;
+
+  try {
+    lawyers =
       JSON.parse(
-        localStorage.getItem("advocaOneAdminLawyers")
+        localStorage.getItem("advocaOneAdminLawyers") || "[]"
       ) || [];
+  } catch {
+    lawyers = [];
+  }
 
-    return (
-      lawyers.find(
-        (lawyer) =>
-          lawyer.name === "Adv. Mahesh Test"
-      ) ||
-      lawyers[lawyers.length - 1] || {
-        id: "test-lawyer",
-        name: "Adv. Mahesh Test",
-        specialization: "General Practice",
-        location: "Pune",
-        consultationFee: 1000,
-      }
-    );
+  try {
+    savedProfile =
+      JSON.parse(
+        localStorage.getItem("advocaOneLawyerProfile") || "null"
+      );
+  } catch {
+    savedProfile = null;
+  }
+
+  const existingLawyer =
+    lawyers.find(
+      (lawyer) => lawyer.name === "Adv. Priya Patil"
+    ) || null;
+
+  return {
+    ...(existingLawyer || {}),
+    ...(savedProfile || {}),
+    id: existingLawyer?.id || 2,
+    name:
+      savedProfile?.name ||
+      existingLawyer?.name ||
+      "Adv. Priya Patil",
+    specialization:
+      savedProfile?.specialization ||
+      existingLawyer?.specialization ||
+      "Family Law",
+    location:
+      savedProfile?.city ||
+      existingLawyer?.city ||
+      "Pune",
+    consultationFee:
+      savedProfile?.consultationFee ??
+      existingLawyer?.fee ??
+      800,
   };
+};
 
-  const currentLawyer = getCurrentLawyer();
+const currentLawyer = getCurrentLawyer();
 
   /* Main states */
   const [appointments, setAppointments] = useState([]);
@@ -125,18 +155,45 @@ const LawyerDashboard = () => {
     return booking.status || "Pending";
   };
 
-  /* Load appointments */
+    /* Load appointments */
   const loadAppointments = useCallback(() => {
-    const savedBookings =
-      JSON.parse(
-        localStorage.getItem("advocaOneBookings")
-      ) || [];
+    let savedBookings = [];
 
-    const lawyerBookings = savedBookings.filter(
-      (booking) =>
-        String(booking.lawyerId) ===
-        String(currentLawyer.id)
-    );
+    try {
+      savedBookings =
+        JSON.parse(
+          localStorage.getItem("advocaOneBookings") || "[]"
+        ) || [];
+    } catch {
+      savedBookings = [];
+    }
+
+    const lawyerBookings = savedBookings.filter((booking) => {
+      const bookingLawyerId = String(
+        booking.lawyerId ?? ""
+      ).trim();
+
+      const currentLawyerId = String(
+        currentLawyer.id ?? ""
+      ).trim();
+
+      const bookingLawyerName = String(
+        booking.lawyerName ?? ""
+      ).trim().toLowerCase();
+
+      const currentLawyerName = String(
+        currentLawyer.name ?? ""
+      ).trim().toLowerCase();
+
+      return (
+        (bookingLawyerId &&
+          currentLawyerId &&
+          bookingLawyerId === currentLawyerId) ||
+        (bookingLawyerName &&
+          currentLawyerName &&
+          bookingLawyerName === currentLawyerName)
+      );
+    });
 
     const formattedAppointments =
       lawyerBookings.map((booking, index) => ({
@@ -212,12 +269,18 @@ const LawyerDashboard = () => {
 
   /* Create notifications for pending bookings */
   useEffect(() => {
-    const savedNotifications =
-      JSON.parse(
-        localStorage.getItem(
-          "advocaOneNotifications"
-        )
-      ) || [];
+    let savedNotifications = [];
+
+try {
+  savedNotifications =
+    JSON.parse(
+      localStorage.getItem(
+        "advocaOneNotifications"
+      ) || "[]"
+    ) || [];
+} catch {
+  savedNotifications = [];
+}
 
     const notificationIds = new Set(
       savedNotifications.map(
@@ -307,12 +370,18 @@ const LawyerDashboard = () => {
     id,
     status
   ) => {
-    const savedBookings =
-      JSON.parse(
-        localStorage.getItem(
-          "advocaOneBookings"
-        )
-      ) || [];
+   let savedBookings = [];
+
+try {
+  savedBookings =
+    JSON.parse(
+      localStorage.getItem(
+        "advocaOneBookings"
+      ) || "[]"
+    ) || [];
+} catch {
+  savedBookings = [];
+}
 
     const updatedBookings =
       savedBookings.map((booking) =>
@@ -380,21 +449,22 @@ const LawyerDashboard = () => {
   };
 
   /* Reject appointment */
-  const handleReject = (appointment) => {
-    const confirmed = window.confirm(
-      `Reject appointment with ${appointment.client}?`
-    );
+const handleReject = (appointment) => {
+  const confirmed = window.confirm(
+    `Reject appointment with ${appointment.client}?`
+  );
 
-    if (!confirmed) {
-      return;
-    }
+  if (!confirmed) {
+    return;
+  }
 
-    updateAppointment(
-      appointment.id,
-      "Rejected"
-    );
-  };
+  updateAppointment(
+    appointment.id,
+    "Rejected"
+  );
 
+  setStatusFilter("Rejected");
+};
   /* Cancel appointment */
   const handleCancel = (appointment) => {
     const confirmed = window.confirm(
@@ -683,32 +753,27 @@ const LawyerDashboard = () => {
           getTimeInMinutes(a.time) -
           getTimeInMinutes(b.time)
       );
+/* Upcoming appointments */
+const upcomingAppointments =
+  appointments
+    .filter(
+      (appointment) =>
+        appointment.date > getToday() &&
+        appointment.status === "Confirmed"
+    )
+    .sort((a, b) => {
+      const dateResult =
+        a.date.localeCompare(b.date);
 
-  /* Upcoming appointments */
-  const upcomingAppointments =
-    appointments
-      .filter(
-        (appointment) =>
-          appointment.date >
-            getToday() &&
-          appointment.status !==
-            "Cancelled" &&
-          appointment.status !==
-            "Rejected"
-      )
-      .sort((a, b) => {
-        const dateResult =
-          a.date.localeCompare(b.date);
+      if (dateResult !== 0) {
+        return dateResult;
+      }
 
-        if (dateResult !== 0) {
-          return dateResult;
-        }
-
-        return (
-          getTimeInMinutes(a.time) -
-          getTimeInMinutes(b.time)
-        );
-      });
+      return (
+        getTimeInMinutes(a.time) -
+        getTimeInMinutes(b.time)
+      );
+    });
 
   /* Past appointments */
   const pastAppointments =

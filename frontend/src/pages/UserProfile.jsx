@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../App.css";
 
@@ -8,11 +8,40 @@ function UserProfile() {
   const [phone, setPhone] = useState("9876543210");
   const [isEditing, setIsEditing] = useState(false);
 
+  useEffect(() => {
+  const savedProfile = localStorage.getItem(
+    "advocaOneUserProfile"
+  );
+
+  if (savedProfile) {
+    const profile = JSON.parse(savedProfile);
+
+    setName(profile.name || "");
+    setEmail(profile.email || "");
+    setPhone(profile.phone || "");
+  }
+}, []);
+
   const handleSave = () => {
-    setIsEditing(false);
-    alert("Profile updated successfully!");
+  if (!name.trim() || !email.trim() || !phone.trim()) {
+    alert("Please fill all profile details");
+    return;
+  }
+
+  const profile = {
+    name: name.trim(),
+    email: email.trim(),
+    phone: phone.trim(),
   };
 
+  localStorage.setItem(
+    "advocaOneUserProfile",
+    JSON.stringify(profile)
+  );
+
+  setIsEditing(false);
+  alert("Profile updated successfully!");
+};
   return (
     <div className="dashboard-page">
 

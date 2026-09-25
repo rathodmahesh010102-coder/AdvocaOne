@@ -17,23 +17,47 @@ function LawyerProfileManage() {
   const lawyers = getLawyers();
 
   const existingLawyer = lawyers.find(
-    (lawyer) => lawyer.name === "Adv. Mahesh Test"
+    (lawyer) => lawyer.name === "Adv. Priya Patil"
   );
 
-  const currentLawyer = existingLawyer || null;
+  const getSavedProfile = () => {
+  try {
+    return JSON.parse(
+      localStorage.getItem("advocaOneLawyerProfile") || "null"
+    );
+  } catch {
+    return null;
+  }
+};
+
+const savedProfile = getSavedProfile();
+
+const currentLawyer = existingLawyer || null;
 
   const [profile, setProfile] = useState({
-    name: currentLawyer?.name || "Adv. Mahesh Test",
-    specialization: currentLawyer?.specialization || "Cyber Law",
-    experience: currentLawyer?.experience ?? "7",
+    name: currentLawyer?.name || "Adv. Priya Patil",
+    specialization:
+  savedProfile?.specialization ||
+  currentLawyer?.specialization ||
+  "Family Law",
+    experience:
+  savedProfile?.experience ??
+  currentLawyer?.experience ??
+  "7",
     barCouncilNumber: currentLawyer?.barCouncilNumber || "",
     enrollmentNumber: currentLawyer?.enrollmentNumber || "",
     education: currentLawyer?.education || "LLB",
     languages:
       currentLawyer?.languages || "English, Hindi, Marathi",
-    city: currentLawyer?.city || "Pune",
+    city:
+  savedProfile?.city ||
+  currentLawyer?.city ||
+  "Pune",
     address: currentLawyer?.address || "",
-    consultationFee: currentLawyer?.fee ?? "1200",
+    consultationFee:
+  savedProfile?.consultationFee ??
+  currentLawyer?.fee ??
+  "800",
     bio:
       currentLawyer?.bio ||
       "Experienced legal professional providing legal consultation and assistance to clients.",

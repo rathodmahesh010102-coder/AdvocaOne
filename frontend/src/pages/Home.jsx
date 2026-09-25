@@ -59,7 +59,7 @@ function Home() {
           : "",
       consultationFee: Number(lawyer.fee) || 0,
       experience: Number(lawyer.experience) || 0,
-      available: true,
+      available: Array.isArray(lawyer.slots) && lawyer.slots.length > 0,
       onlineStatus: lawyer.onlineStatus || "Offline",
       appointmentStatus:
         lawyer.appointmentStatus || "Accepting Appointments",

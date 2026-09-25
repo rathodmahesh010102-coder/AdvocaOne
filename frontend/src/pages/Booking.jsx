@@ -142,7 +142,7 @@ function Booking() {
       return;
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(userEmail)) {
+   if (!/^\S+@\S+\.\S+$/.test(userEmail)) {
       alert("Please enter a valid email address.");
       return;
     }

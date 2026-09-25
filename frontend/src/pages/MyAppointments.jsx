@@ -19,8 +19,8 @@ function MyAppointments() {
       })
     : "";
 
-  const availableTimeSlots = availability[selectedRescheduleDay] || [];
-
+const availableRescheduleSlots =
+  availability[selectedRescheduleDay] || [];
   // Cancel Appointment
   const handleCancel = (id) => {
     const confirmCancel = window.confirm(
