@@ -1,0 +1,524 @@
+
+/* =========================================
+   ADVOCaONE - GLOBAL
+========================================= */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: #212529;
+}
+
+
+/* =========================================
+   NAVBAR
+========================================= */
+
+.navbar {
+  padding: 15px 0;
+}
+
+.navbar-brand {
+  font-size: 1.4rem;
+}
+
+.nav-link {
+  margin-left: 15px;
+  transition: 0.3s;
+}
+
+.nav-link:hover {
+  color: #0d6efd !important;
+}
+
+
+/* =========================================
+   HERO SECTION
+========================================= */
+
+.hero-section {
+  padding-top: 70px;
+  background: linear-gradient(135deg, #f8f9fa, #eef5ff);
+}
+
+.hero-section h1 {
+  font-size: 3.5rem;
+  line-height: 1.2;
+}
+
+.hero-section p {
+  max-width: 600px;
+}
+
+.hero-buttons .btn {
+  border-radius: 8px;
+}
+
+
+/* =========================================
+   HERO CARD
+========================================= */
+
+.hero-card {
+  padding: 60px 30px;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+}
+
+.balance-icon {
+  font-size: 100px;
+  margin-bottom: 20px;
+}
+
+
+/* =========================================
+   SEARCH SECTION
+========================================= */
+
+.search-section {
+  background: #ffffff;
+}
+
+.search-box {
+  max-width: 1000px;
+  margin: auto;
+  background: #ffffff;
+}
+
+.form-control,
+.form-select {
+  min-height: 48px;
+}
+
+
+/* =========================================
+   PRACTICE AREAS
+========================================= */
+
+.practice-card {
+  border: 1px solid #e9ecef;
+  border-radius: 15px;
+  background: #ffffff;
+  transition: 0.3s;
+}
+
+.practice-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.practice-icon {
+  font-size: 45px;
+}
+
+
+/* =========================================
+   HOW IT WORKS
+========================================= */
+
+.how-section {
+  background: #f8f9fa;
+}
+
+.step-card {
+  padding: 30px;
+}
+
+.step-number {
+  width: 55px;
+  height: 55px;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0d6efd;
+  color: #ffffff;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  font-weight: bold;
+}
+
+
+/* =========================================
+   CTA
+========================================= */
+
+.cta-section {
+  background: #0d6efd;
+  color: #ffffff;
+}
+
+
+/* =========================================
+   FOOTER
+========================================= */
+
+footer {
+  margin-top: 0;
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 991px) {
+
+  .hero-section h1 {
+    font-size: 2.8rem;
+  }
+
+  .hero-card {
+    margin-top: 40px;
+  }
+
+}
+
+
+@media (max-width: 576px) {
+
+  .hero-section h1 {
+    font-size: 2.2rem;
+  }
+
+  .hero-buttons .btn {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+}
+/* Booking Confirmation */
+
+.booking-confirmation {
+  max-width: 650px;
+  margin: 40px auto;
+  padding: 30px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  text-align: left;
+}
+
+.booking-confirmation h3 {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.booking-confirmation p {
+  padding: 10px 0;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+}
+
+.booking-confirmation button {
+  display: block;
+  margin: 25px auto 0;
+}
+
+.confirmation-message{
+  text-align: center;
+  margin-bottom: 25px !important;
+  color: #555;
+  border-bottom: none !important;
+}
+.appointment-detail {
+  font-size: 17px;
+  font-weight: 500;
+  background: #f8f9fa;
+  padding: 12px !important;
+  border-radius: 8px;
+  margin-bottom: 10px !important;
+}
+.confirmation-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 25px;
+  flex-wrap: wrap;
+}
+.lawyer-card {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: none;
+  border-radius: 15px;
+}
+
+.lawyer-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15) !important;
+}
+.lawyer-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 15px;
+}.lawyer-status {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: 20px;
+}.lawyer-card .card-body {
+  padding: 22px;
+}
+
+.lawyer-card .card-text {
+  margin-bottom: 10px;
+}.profile-button {
+  transition: all 0.3s ease;
+}
+
+.profile-button:hover {
+  transform: translateY(-2px);
+}
+/* Style the lawyer avatar */
+.lawyer-avatar {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 28px;
+  background: #f1f3f5;
+}
+
+.lawyer-card .lawyer-name {
+  text-align: center;
+}
+.lawyer-card hr {
+  margin: 15px 0;
+  opacity: 0.15;
+}
+.consultation-fee {
+  font-size: 17px;
+  font-weight: 600;
+}@media (max-width: 576px) {
+  .lawyer-card {
+    margin-bottom: 15px;
+  }
+
+  .lawyer-card .card-body {
+    padding: 18px;
+  }
+}.lawyer-search-box {
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 16px !important;
+  padding: 30px !important;
+}
+.lawyer-search-box .form-control,
+.lawyer-search-box .form-select {
+  height: 48px;
+  border-radius: 10px;
+}
+.lawyer-search-box .form-label {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.lawyer-search-box button {
+  min-width: 160px;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+}
+
+.lawyer-search-box button:hover {
+  transform: translateY(-2px);
+}.practice-card {
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.practice-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+}
+/* login page */
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8f9fa;
+  padding: 30px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 450px;
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  text-align: center;
+}
+
+.login-icon {
+  font-size: 50px;
+  margin-bottom: 15px;
+}
+
+.login-card h2 {
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.login-card form {
+  text-align: left;
+  margin-top: 25px;
+}
+
+.login-card .form-control {
+  height: 48px;
+  border-radius: 10px;
+}
+
+.login-card button {
+  height: 48px;
+  border-radius: 10px;
+}
+
+/* Dashboard */
+.dashboard-welcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 35px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-balance-icon {
+  font-size: 70px;
+}
+
+@media (max-width: 576px) {
+  .dashboard-welcome {
+    text-align: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+}.dashboard-stat-card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 100%;
+}
+
+.stat-icon {
+  font-size: 35px;
+}
+
+.dashboard-stat-card h6 {
+  color: #6c757d;
+  margin-bottom: 8px;
+}
+
+.dashboard-stat-card h2 {
+  font-weight: 700;
+  margin: 0;
+}
+.profile-page-card {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  padding: 40px;
+  border-radius: 16px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.profile-avatar {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: #f1f3f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 45px;
+}
+
+.profile-form {
+  text-align: left;
+}
+
+.profile-form .form-control {
+  height: 48px;
+  border-radius: 10px;
+}
+
+.profile-form button {
+  height: 48px;
+  border-radius: 10px;
+}
+
+.lawyer-profile-page {
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.lawyer-profile-card {
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+}
+
+.lawyer-profile-avatar {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: #e9f1ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 70px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.profile-info-box {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 18px;
+  height: 100%;
+  border: 1px solid #e9ecef;
+}
+
+.profile-info-box strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.profile-info-box p {
+  margin: 0;
+  color: #555;
+  font-size: 16px;
+}
+
+.lawyer-profile-card .badge {
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .lawyer-profile-card {
+    margin: 10px;
+  }
+
+  .lawyer-profile-avatar {
+    width: 120px;
+    height: 120px;
+    font-size: 55px;
+  }
+}
