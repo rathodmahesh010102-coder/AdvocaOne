@@ -23,46 +23,9 @@ Lawyers can manage their profile, availability and appointments.
 Admin can manage lawyer related information.
 
 ## Features
-
-### User Features
-
-- User registration
-- User login
-- User profile
-- View lawyers
-- View lawyer profile
-- Book appointment
-- View appointments
-- Pending appointment status
-- Confirmed appointment status
-- Cancel appointment
-- Reschedule appointment
-- Completed appointment status
-- Search appointments
-- Filter appointments
-- Upcoming appointments
-- Past appointments
-- Double booking protection
-
-### Lawyer Features
-
-- Lawyer dashboard
-- View appointments
-- Pending appointments
-- Confirm appointment
-- Reject appointment
-- Completed appointments
-- Estimated earnings
-- Manage lawyer profile
-- Manage availability
-- Online and offline status
-
-### Admin Features
-
-- Admin dashboard
-- Manage lawyers
-- View lawyer information
-- Update lawyer related information
+- User Features
+- Lawyer Features
+- Admin Features
 
 ## Technologies Used
 
@@ -86,51 +49,6 @@ Admin can manage lawyer related information.
 - JWT
 - PostgreSQL
 
-## Project Structure
-
-
-AdvocaOne
-│
-├── frontend
-│   │
-│   ├── public
-│   │
-│   ├── src
-│   │   ├── assets
-│   │   ├── components
-│   │   ├── data
-│   │   ├── pages
-│   │   │
-│   │   ├── App.jsx
-│   │   ├── App.css
-│   │   ├── index.css
-│   │   └── main.jsx
-│   │
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── vite.config.js
-│   └── README.md
-│
-└── README.md
-
-
-## Pages in the Project
-
-Some of the main pages currently available in the project are:
-
-- Home
-- Lawyer Profile
-- Booking
-- Login
-- Register
-- User Dashboard
-- User Profile
-- My Bookings
-- My Appointments
-- Lawyer Dashboard
-- Lawyer Profile Management
-- Manage Availability
-- Admin Dashboard
 
 ## Appointment Flow
 
