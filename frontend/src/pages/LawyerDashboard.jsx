@@ -11,91 +11,180 @@ import "./LawyerDashboard.css";
 const LawyerDashboard = () => {
   const navigate = useNavigate();
 
- /* Get current lawyer */
+  /* =====================================================
+     GET CURRENT LOGGED-IN LAWYER
+  ===================================================== */
 
-const getCurrentLawyer = () => {
-  let lawyers = [];
-  let savedProfile = null;
+  const getCurrentLawyer = () => {
+    let lawyers = [];
+    let savedProfile = null;
+    let loggedInUser = null;
 
-  try {
-    lawyers =
-      JSON.parse(
-        localStorage.getItem("advocaOneAdminLawyers") || "[]"
-      ) || [];
-  } catch {
-    lawyers = [];
-  }
+    /* Get registered lawyers */
+    try {
+      lawyers =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAdminLawyers"
+          ) || "[]"
+        ) || [];
+    } catch {
+      lawyers = [];
+    }
 
-  try {
-    savedProfile =
-      JSON.parse(
-        localStorage.getItem("advocaOneLawyerProfile") || "null"
-      );
-  } catch {
-    savedProfile = null;
-  }
+    /* Get saved lawyer profile */
+    try {
+      savedProfile =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneLawyerProfile"
+          ) || "null"
+        );
+    } catch {
+      savedProfile = null;
+    }
 
-  const existingLawyer =
-    lawyers.find(
-      (lawyer) => lawyer.name === "Adv. Priya Patil"
-    ) || null;
+    /* Get logged-in account */
+    try {
+      loggedInUser =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneLoggedInUser"
+          ) || "null"
+        );
+    } catch {
+      loggedInUser = null;
+    }
 
-  return {
-    ...(existingLawyer || {}),
-    ...(savedProfile || {}),
-    id: existingLawyer?.id || 2,
-    name:
-      savedProfile?.name ||
-      existingLawyer?.name ||
-      "Adv. Priya Patil",
-    specialization:
-      savedProfile?.specialization ||
-      existingLawyer?.specialization ||
-      "Family Law",
-    location:
-      savedProfile?.city ||
-      existingLawyer?.city ||
-      "Pune",
-    consultationFee:
-      savedProfile?.consultationFee ??
-      existingLawyer?.fee ??
-      800,
+    const loggedInEmail =
+      loggedInUser?.email
+        ?.trim()
+        .toLowerCase() || "";
+
+    /* Find lawyer using logged-in email */
+    const existingLawyer =
+      lawyers.find(
+        (lawyer) =>
+          lawyer.email
+            ?.trim()
+            .toLowerCase() === loggedInEmail
+      ) || null;
+
+    /* Use saved profile only if it belongs to
+       the currently logged-in lawyer */
+    const matchingSavedProfile =
+      savedProfile?.email
+        ?.trim()
+        .toLowerCase() === loggedInEmail
+        ? savedProfile
+        : null;
+
+    return {
+      ...(existingLawyer || {}),
+      ...(matchingSavedProfile || {}),
+
+      id:
+        existingLawyer?.id ||
+        matchingSavedProfile?.id ||
+        "",
+
+      name:
+        matchingSavedProfile?.name ||
+        existingLawyer?.name ||
+        loggedInUser?.name ||
+        "Lawyer",
+
+      specialization:
+        matchingSavedProfile?.specialization ||
+        existingLawyer?.specialization ||
+        "Not Selected",
+
+      location:
+        matchingSavedProfile?.city ||
+        existingLawyer?.city ||
+        "Not Selected",
+
+      consultationFee:
+        matchingSavedProfile?.consultationFee ??
+        existingLawyer?.fee ??
+        0,
+
+      email:
+        existingLawyer?.email ||
+        matchingSavedProfile?.email ||
+        loggedInUser?.email ||
+        "",
+    };
   };
-};
 
-const currentLawyer = getCurrentLawyer();
+  const currentLawyer = getCurrentLawyer();
 
-  /* Main states */
+  /* =====================================================
+     LAWYER-SPECIFIC NOTIFICATION STORAGE
+  ===================================================== */
+
+  const notificationStorageKey =
+    `advocaOneNotifications_${currentLawyer.email
+      ?.trim()
+      .toLowerCase()}`;
+
+  /* =====================================================
+     MAIN STATES
+  ===================================================== */
+
   const [appointments, setAppointments] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [lastUpdated, setLastUpdated] = useState(null);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [statusFilter, setStatusFilter] =
+    useState("All");
+  const [lastUpdated, setLastUpdated] =
+    useState(null);
+  const [successMessage, setSuccessMessage] =
+    useState("");
 
-  /* Modal states */
-  const [selectedClient, setSelectedClient] = useState(null);
+  /* =====================================================
+     MODAL STATES
+  ===================================================== */
+
+  const [selectedClient, setSelectedClient] =
+    useState(null);
+
   const [selectedAppointment, setSelectedAppointment] =
     useState(null);
+
   const [rescheduleAppointment, setRescheduleAppointment] =
     useState(null);
 
-  /* Reschedule states */
+  /* =====================================================
+     RESCHEDULE STATES
+  ===================================================== */
+
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
 
-  /* Notification states */
-  const [notifications, setNotifications] = useState([]);
+  /* =====================================================
+     NOTIFICATION STATES
+  ===================================================== */
+
+  const [notifications, setNotifications] =
+    useState([]);
+
   const [showNotifications, setShowNotifications] =
     useState(false);
 
-  /* Lawyer status */
+  /* =====================================================
+     LAWYER STATUS
+  ===================================================== */
+
   const [onlineStatus, setOnlineStatus] =
     useState("Online");
 
   const [appointmentStatus, setAppointmentStatus] =
     useState("Accepting Appointments");
 
-  /* Get today's date */
+  /* =====================================================
+     GET TODAY'S DATE
+  ===================================================== */
+
   const getToday = () => {
     const date = new Date();
 
@@ -112,7 +201,10 @@ const currentLawyer = getCurrentLawyer();
     return `${year}-${month}-${day}`;
   };
 
-  /* Convert AM/PM time to minutes */
+  /* =====================================================
+     CONVERT AM/PM TIME TO MINUTES
+  ===================================================== */
+
   const getTimeInMinutes = (time) => {
     if (!time) {
       return 0;
@@ -128,20 +220,31 @@ const currentLawyer = getCurrentLawyer();
 
     let hours = Number(match[1]);
     const minutes = Number(match[2]);
-    const period = match[3].toUpperCase();
 
-    if (period === "PM" && hours !== 12) {
+    const period =
+      match[3].toUpperCase();
+
+    if (
+      period === "PM" &&
+      hours !== 12
+    ) {
       hours += 12;
     }
 
-    if (period === "AM" && hours === 12) {
+    if (
+      period === "AM" &&
+      hours === 12
+    ) {
       hours = 0;
     }
 
     return hours * 60 + minutes;
   };
 
-  /* Show success message */
+  /* =====================================================
+     SHOW SUCCESS MESSAGE
+  ===================================================== */
+
   const showSuccessMessage = (message) => {
     setSuccessMessage(message);
 
@@ -150,293 +253,408 @@ const currentLawyer = getCurrentLawyer();
     }, 3000);
   };
 
-  /* Get appointment status */
+  /* =====================================================
+     GET APPOINTMENT STATUS
+  ===================================================== */
+
   const getAppointmentStatus = (booking) => {
     return booking.status || "Pending";
   };
 
-    /* Load appointments */
+  /* =====================================================
+     LOAD APPOINTMENTS
+  ===================================================== */
+
   const loadAppointments = useCallback(() => {
     let savedBookings = [];
 
     try {
       savedBookings =
         JSON.parse(
-          localStorage.getItem("advocaOneBookings") || "[]"
+          localStorage.getItem(
+            "advocaOneBookings"
+          ) || "[]"
         ) || [];
     } catch {
       savedBookings = [];
     }
 
-    const lawyerBookings = savedBookings.filter((booking) => {
-      const bookingLawyerId = String(
-        booking.lawyerId ?? ""
-      ).trim();
+    const lawyerBookings =
+      savedBookings.filter(
+        (booking) => {
+          const bookingLawyerId =
+            String(
+              booking.lawyerId ?? ""
+            ).trim();
 
-      const currentLawyerId = String(
-        currentLawyer.id ?? ""
-      ).trim();
+          const currentLawyerId =
+            String(
+              currentLawyer.id ?? ""
+            ).trim();
 
-      const bookingLawyerName = String(
-        booking.lawyerName ?? ""
-      ).trim().toLowerCase();
+          const bookingLawyerName =
+            String(
+              booking.lawyerName ?? ""
+            )
+              .trim()
+              .toLowerCase();
 
-      const currentLawyerName = String(
-        currentLawyer.name ?? ""
-      ).trim().toLowerCase();
+          const currentLawyerName =
+            String(
+              currentLawyer.name ?? ""
+            )
+              .trim()
+              .toLowerCase();
 
-      return (
-        (bookingLawyerId &&
-          currentLawyerId &&
-          bookingLawyerId === currentLawyerId) ||
-        (bookingLawyerName &&
-          currentLawyerName &&
-          bookingLawyerName === currentLawyerName)
+          return (
+            (
+              bookingLawyerId &&
+              currentLawyerId &&
+              bookingLawyerId ===
+                currentLawyerId
+            ) ||
+            (
+              bookingLawyerName &&
+              currentLawyerName &&
+              bookingLawyerName ===
+                currentLawyerName
+            )
+          );
+        }
       );
-    });
 
     const formattedAppointments =
-      lawyerBookings.map((booking, index) => ({
-        ...booking,
+      lawyerBookings.map(
+        (booking, index) => ({
+          ...booking,
 
-        id:
-          booking.id ||
-          index + 1,
+          id:
+            booking.id ||
+            index + 1,
 
-        client:
-          booking.client ||
-          booking.clientName ||
-          booking.name ||
-          booking.userName ||
-          "Client",
+          client:
+            booking.client ||
+            booking.clientName ||
+            booking.name ||
+            booking.userName ||
+            "Client",
 
-        userEmail:
-          booking.userEmail ||
-          "Not provided",
+          userEmail:
+            booking.userEmail ||
+            "Not provided",
 
-        userPhone:
-          booking.userPhone ||
-          "Not provided",
+          userPhone:
+            booking.userPhone ||
+            "Not provided",
 
-        date:
-          booking.date ||
-          booking.bookingDate ||
-          "",
+          date:
+            booking.date ||
+            booking.bookingDate ||
+            "",
 
-        time:
-          booking.time ||
-          booking.bookingTime ||
-          "",
+          time:
+            booking.time ||
+            booking.bookingTime ||
+            "",
 
-        type:
-          booking.type ||
-          booking.consultationType ||
-          booking.mode ||
-          "Online",
+          type:
+            booking.type ||
+            booking.consultationType ||
+            booking.mode ||
+            "Online",
 
-        reason:
-          booking.reason ||
-          booking.message ||
-          booking.consultationReason ||
-          "Consultation",
+          reason:
+            booking.reason ||
+            booking.message ||
+            booking.consultationReason ||
+            "Consultation",
 
-        fee: Number(
-          booking.fee ||
-            booking.consultationFee ||
-            0
-        ),
+          fee: Number(
+            booking.fee ||
+              booking.consultationFee ||
+              0
+          ),
 
-        status:
-          getAppointmentStatus(booking),
-      }));
+          status:
+            getAppointmentStatus(
+              booking
+            ),
+        })
+      );
 
-    setAppointments(formattedAppointments);
-    setLastUpdated(new Date());
-  }, [currentLawyer.id]);
+    setAppointments(
+      formattedAppointments
+    );
 
-  /* Load appointments when dashboard opens */
+    setLastUpdated(
+      new Date()
+    );
+  }, [
+    currentLawyer.id,
+    currentLawyer.name,
+  ]);
+
+  /* =====================================================
+     LOAD APPOINTMENTS WHEN DASHBOARD OPENS
+  ===================================================== */
+
   useEffect(() => {
     loadAppointments();
 
-    const interval = setInterval(() => {
-      loadAppointments();
-    }, 30000);
+    const interval =
+      setInterval(() => {
+        loadAppointments();
+      }, 30000);
 
     return () => {
       clearInterval(interval);
     };
   }, [loadAppointments]);
 
-  /* Create notifications for pending bookings */
+  /* =====================================================
+     CREATE LAWYER-SPECIFIC NOTIFICATIONS
+  ===================================================== */
+
   useEffect(() => {
     let savedNotifications = [];
 
-try {
-  savedNotifications =
-    JSON.parse(
-      localStorage.getItem(
-        "advocaOneNotifications"
-      ) || "[]"
-    ) || [];
-} catch {
-  savedNotifications = [];
-}
+    try {
+      savedNotifications =
+        JSON.parse(
+          localStorage.getItem(
+            notificationStorageKey
+          ) || "[]"
+        ) || [];
+    } catch {
+      savedNotifications = [];
+    }
 
-    const notificationIds = new Set(
-      savedNotifications.map(
-        (notification) =>
-          String(notification.appointmentId)
-      )
-    );
+    const notificationIds =
+      new Set(
+        savedNotifications.map(
+          (notification) =>
+            String(
+              notification.appointmentId
+            )
+        )
+      );
 
-    const newNotifications = appointments
-      .filter(
-        (appointment) =>
-          appointment.status === "Pending"
-      )
-      .filter(
-        (appointment) =>
-          !notificationIds.has(
-            String(appointment.id)
-          )
-      )
-      .map((appointment) => ({
-        id: `notification-${appointment.id}`,
-        appointmentId: appointment.id,
-        title: "New Booking Request",
-        message:
-          `${appointment.client} requested an appointment ` +
-          `on ${appointment.date} at ${appointment.time}.`,
-        read: false,
-        createdAt: new Date().toISOString(),
-      }));
+    const newNotifications =
+      appointments
+        .filter(
+          (appointment) =>
+            appointment.status ===
+            "Pending"
+        )
+        .filter(
+          (appointment) =>
+            !notificationIds.has(
+              String(
+                appointment.id
+              )
+            )
+        )
+        .map(
+          (appointment) => ({
+            id:
+              `notification-${appointment.id}`,
+
+            appointmentId:
+              appointment.id,
+
+            title:
+              "New Booking Request",
+
+            message:
+              `${appointment.client} requested an appointment ` +
+              `on ${appointment.date} at ${appointment.time}.`,
+
+            read: false,
+
+            createdAt:
+              new Date().toISOString(),
+          })
+        );
 
     const updatedNotifications = [
       ...newNotifications,
       ...savedNotifications,
     ];
 
-    setNotifications(updatedNotifications);
+    setNotifications(
+      updatedNotifications
+    );
 
     localStorage.setItem(
-      "advocaOneNotifications",
-      JSON.stringify(updatedNotifications)
+      notificationStorageKey,
+      JSON.stringify(
+        updatedNotifications
+      )
     );
-  }, [appointments]);
+  }, [
+    appointments,
+    notificationStorageKey,
+  ]);
 
-  /* Mark all notifications as read */
+  /* =====================================================
+     MARK ALL NOTIFICATIONS AS READ
+  ===================================================== */
+
   const markAllNotificationsRead = () => {
     const updatedNotifications =
-      notifications.map((notification) => ({
-        ...notification,
-        read: true,
-      }));
+      notifications.map(
+        (notification) => ({
+          ...notification,
+          read: true,
+        })
+      );
 
-    setNotifications(updatedNotifications);
+    setNotifications(
+      updatedNotifications
+    );
 
     localStorage.setItem(
-      "advocaOneNotifications",
-      JSON.stringify(updatedNotifications)
+      notificationStorageKey,
+      JSON.stringify(
+        updatedNotifications
+      )
     );
   };
 
-  /* Mark one notification as read */
-  const markNotificationRead = (notificationId) => {
+  /* =====================================================
+     MARK ONE NOTIFICATION AS READ
+  ===================================================== */
+
+  const markNotificationRead = (
+    notificationId
+  ) => {
     const updatedNotifications =
-      notifications.map((notification) =>
-        notification.id === notificationId
-          ? {
-              ...notification,
-              read: true,
-            }
-          : notification
+      notifications.map(
+        (notification) =>
+          notification.id ===
+          notificationId
+            ? {
+                ...notification,
+                read: true,
+              }
+            : notification
       );
 
-    setNotifications(updatedNotifications);
+    setNotifications(
+      updatedNotifications
+    );
 
     localStorage.setItem(
-      "advocaOneNotifications",
-      JSON.stringify(updatedNotifications)
+      notificationStorageKey,
+      JSON.stringify(
+        updatedNotifications
+      )
     );
   };
 
   const unreadNotifications =
     notifications.filter(
-      (notification) => !notification.read
+      (notification) =>
+        !notification.read
     ).length;
 
-  /* Update appointment status */
+  /* =====================================================
+     UPDATE APPOINTMENT STATUS
+  ===================================================== */
+
   const updateAppointment = (
     id,
     status
   ) => {
-   let savedBookings = [];
+    let savedBookings = [];
 
-try {
-  savedBookings =
-    JSON.parse(
-      localStorage.getItem(
-        "advocaOneBookings"
-      ) || "[]"
-    ) || [];
-} catch {
-  savedBookings = [];
-}
+    try {
+      savedBookings =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneBookings"
+          ) || "[]"
+        ) || [];
+    } catch {
+      savedBookings = [];
+    }
 
     const updatedBookings =
-      savedBookings.map((booking) =>
-        String(booking.id) === String(id)
-          ? {
-              ...booking,
-              status,
-            }
-          : booking
+      savedBookings.map(
+        (booking) =>
+          String(booking.id) ===
+          String(id)
+            ? {
+                ...booking,
+                status,
+              }
+            : booking
       );
 
     localStorage.setItem(
       "advocaOneBookings",
-      JSON.stringify(updatedBookings)
-    );
-
-    setAppointments((currentAppointments) =>
-      currentAppointments.map(
-        (appointment) =>
-          String(appointment.id) ===
-          String(id)
-            ? {
-                ...appointment,
-                status,
-              }
-            : appointment
+      JSON.stringify(
+        updatedBookings
       )
     );
 
-    setLastUpdated(new Date());
+    setAppointments(
+      (currentAppointments) =>
+        currentAppointments.map(
+          (appointment) =>
+            String(
+              appointment.id
+            ) === String(id)
+              ? {
+                  ...appointment,
+                  status,
+                }
+              : appointment
+        )
+    );
 
-    if (status === "Confirmed") {
+    setLastUpdated(
+      new Date()
+    );
+
+    if (
+      status === "Confirmed"
+    ) {
       showSuccessMessage(
         "✅ Appointment confirmed successfully."
       );
-    } else if (status === "Rejected") {
+    } else if (
+      status === "Rejected"
+    ) {
       showSuccessMessage(
         "❌ Appointment rejected successfully."
       );
-    } else if (status === "Completed") {
+    } else if (
+      status === "Completed"
+    ) {
       showSuccessMessage(
         "🏁 Appointment marked as completed."
       );
-    } else if (status === "Cancelled") {
+    } else if (
+      status === "Cancelled"
+    ) {
       showSuccessMessage(
         "❌ Appointment cancelled successfully."
       );
     }
   };
 
-  /* Confirm appointment */
-  const handleConfirm = (appointment) => {
-    const confirmed = window.confirm(
-      `Confirm appointment with ${appointment.client}?`
-    );
+  /* =====================================================
+     CONFIRM APPOINTMENT
+  ===================================================== */
+
+  const handleConfirm = (
+    appointment
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Confirm appointment with ${appointment.client}?`
+      );
 
     if (!confirmed) {
       return;
@@ -448,28 +666,43 @@ try {
     );
   };
 
-  /* Reject appointment */
-const handleReject = (appointment) => {
-  const confirmed = window.confirm(
-    `Reject appointment with ${appointment.client}?`
-  );
+  /* =====================================================
+     REJECT APPOINTMENT
+  ===================================================== */
 
-  if (!confirmed) {
-    return;
-  }
+  const handleReject = (
+    appointment
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Reject appointment with ${appointment.client}?`
+      );
 
-  updateAppointment(
-    appointment.id,
-    "Rejected"
-  );
+    if (!confirmed) {
+      return;
+    }
 
-  setStatusFilter("Rejected");
-};
-  /* Cancel appointment */
-  const handleCancel = (appointment) => {
-    const confirmed = window.confirm(
-      `Cancel appointment with ${appointment.client}?`
+    updateAppointment(
+      appointment.id,
+      "Rejected"
     );
+
+    setStatusFilter(
+      "Rejected"
+    );
+  };
+
+  /* =====================================================
+     CANCEL APPOINTMENT
+  ===================================================== */
+
+  const handleCancel = (
+    appointment
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Cancel appointment with ${appointment.client}?`
+      );
 
     if (!confirmed) {
       return;
@@ -481,8 +714,13 @@ const handleReject = (appointment) => {
     );
   };
 
-  /* Get day name */
-  const getDayName = (dateString) => {
+  /* =====================================================
+     GET DAY NAME
+  ===================================================== */
+
+  const getDayName = (
+    dateString
+  ) => {
     if (!dateString) {
       return "";
     }
@@ -499,27 +737,44 @@ const handleReject = (appointment) => {
     );
   };
 
-  /* Get available time slots */
+  /* =====================================================
+     GET AVAILABLE TIME SLOTS
+  ===================================================== */
+
   const getAvailableSlots = () => {
     if (!newDate) {
       return [];
     }
 
-    const availability =
-      JSON.parse(
-        localStorage.getItem(
-          "advocaOneAvailability"
-        )
-      ) || {};
+    let availability = {};
 
-    const day = getDayName(newDate);
+    try {
+      availability =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAvailability"
+          ) || "{}"
+        ) || {};
+    } catch {
+      availability = {};
+    }
+
+    const day =
+      getDayName(newDate);
 
     return availability[day] || [];
   };
 
-  /* Open reschedule modal */
-  const openReschedule = (appointment) => {
-    setRescheduleAppointment(appointment);
+  /* =====================================================
+     OPEN RESCHEDULE MODAL
+  ===================================================== */
+
+  const openReschedule = (
+    appointment
+  ) => {
+    setRescheduleAppointment(
+      appointment
+    );
 
     setNewDate(
       appointment.date || ""
@@ -530,21 +785,28 @@ const handleReject = (appointment) => {
     );
   };
 
-  /* Save rescheduled appointment */
+  /* =====================================================
+     SAVE RESCHEDULED APPOINTMENT
+  ===================================================== */
+
   const handleReschedule = () => {
     if (!rescheduleAppointment) {
       return;
     }
 
     if (!newDate || !newTime) {
-      alert("Please select date and time.");
+      alert(
+        "Please select date and time."
+      );
       return;
     }
 
     const today = getToday();
 
     if (newDate < today) {
-      alert("Please select a future date.");
+      alert(
+        "Please select a future date."
+      );
       return;
     }
 
@@ -553,7 +815,9 @@ const handleReject = (appointment) => {
 
     if (
       availableSlots.length > 0 &&
-      !availableSlots.includes(newTime)
+      !availableSlots.includes(
+        newTime
+      )
     ) {
       alert(
         "Selected time is not available."
@@ -570,8 +834,9 @@ const handleReject = (appointment) => {
         now.getMinutes();
 
       if (
-        getTimeInMinutes(newTime) <=
-        currentMinutes
+        getTimeInMinutes(
+          newTime
+        ) <= currentMinutes
       ) {
         alert(
           "Please select a future time."
@@ -581,23 +846,30 @@ const handleReject = (appointment) => {
     }
 
     /* Prevent double booking */
-    const duplicate = appointments.some(
-      (appointment) =>
-        String(appointment.id) !==
+    const duplicate =
+      appointments.some(
+        (appointment) =>
           String(
-            rescheduleAppointment.id
-          ) &&
-        String(appointment.lawyerId) ===
+            appointment.id
+          ) !==
+            String(
+              rescheduleAppointment.id
+            ) &&
           String(
-            rescheduleAppointment.lawyerId
-          ) &&
-        appointment.date === newDate &&
-        appointment.time === newTime &&
-        appointment.status !==
-          "Cancelled" &&
-        appointment.status !==
-          "Rejected"
-    );
+            appointment.lawyerId
+          ) ===
+            String(
+              rescheduleAppointment.lawyerId
+            ) &&
+          appointment.date ===
+            newDate &&
+          appointment.time ===
+            newTime &&
+          appointment.status !==
+            "Cancelled" &&
+          appointment.status !==
+            "Rejected"
+      );
 
     if (duplicate) {
       alert(
@@ -606,43 +878,66 @@ const handleReject = (appointment) => {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Reschedule ${rescheduleAppointment.client}'s appointment to ${newDate} at ${newTime}?`
-    );
+    const confirmed =
+      window.confirm(
+        `Reschedule ${rescheduleAppointment.client}'s appointment to ${newDate} at ${newTime}?`
+      );
 
     if (!confirmed) {
       return;
     }
 
-    const savedBookings =
-      JSON.parse(
-        localStorage.getItem(
-          "advocaOneBookings"
-        )
-      ) || [];
+    /* Get all saved bookings */
+    let savedBookings = [];
 
+    try {
+      savedBookings =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneBookings"
+          ) || "[]"
+        ) || [];
+    } catch {
+      savedBookings = [];
+    }
+
+    /* Update selected booking */
     const updatedBookings =
-      savedBookings.map((booking) =>
-        String(booking.id) ===
-        String(
-          rescheduleAppointment.id
-        )
-          ? {
-              ...booking,
-              date: newDate,
-              day: getDayName(newDate),
-              time: newTime,
-              status: "Confirmed",
-            }
-          : booking
+      savedBookings.map(
+        (booking) =>
+          String(
+            booking.id
+          ) ===
+          String(
+            rescheduleAppointment.id
+          )
+            ? {
+                ...booking,
+
+                date: newDate,
+
+                day: getDayName(
+                  newDate
+                ),
+
+                time: newTime,
+
+                status: "Confirmed",
+              }
+            : booking
       );
 
     localStorage.setItem(
       "advocaOneBookings",
-      JSON.stringify(updatedBookings)
+      JSON.stringify(
+        updatedBookings
+      )
     );
 
-    setRescheduleAppointment(null);
+    setRescheduleAppointment(
+      null
+    );
+
     setNewDate("");
     setNewTime("");
 
@@ -653,57 +948,73 @@ const handleReject = (appointment) => {
     );
   };
 
-  /* Appointment counters */
+  /* =====================================================
+     APPOINTMENT COUNTERS
+  ===================================================== */
+
   const totalAppointments =
     appointments.length;
 
   const pendingAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Pending"
+        appointment.status ===
+        "Pending"
     );
 
   const confirmedAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Confirmed"
+        appointment.status ===
+        "Confirmed"
     );
 
   const completedAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Completed"
+        appointment.status ===
+        "Completed"
     );
 
   const rejectedAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Rejected"
+        appointment.status ===
+        "Rejected"
     );
 
   const cancelledAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Cancelled"
+        appointment.status ===
+        "Cancelled"
     );
 
-  /* Earnings */
+  /* =====================================================
+     EARNINGS
+  ===================================================== */
+
   const earningAppointments =
     appointments.filter(
       (appointment) =>
-        appointment.status === "Confirmed" ||
-        appointment.status === "Completed"
+        appointment.status ===
+          "Confirmed" ||
+        appointment.status ===
+          "Completed"
     );
 
   const totalEarnings =
     earningAppointments.reduce(
       (total, appointment) =>
         total +
-        Number(appointment.fee || 0),
+        Number(
+          appointment.fee || 0
+        ),
       0
     );
 
-  const currentDate = new Date();
+  const currentDate =
+    new Date();
 
   const currentMonth =
     currentDate.getMonth();
@@ -713,30 +1024,38 @@ const handleReject = (appointment) => {
 
   const monthlyEarnings =
     earningAppointments
-      .filter((appointment) => {
-        if (!appointment.date) {
-          return false;
+      .filter(
+        (appointment) => {
+          if (!appointment.date) {
+            return false;
+          }
+
+          const date =
+            new Date(
+              `${appointment.date}T00:00:00`
+            );
+
+          return (
+            date.getMonth() ===
+              currentMonth &&
+            date.getFullYear() ===
+              currentYear
+          );
         }
-
-        const date = new Date(
-          `${appointment.date}T00:00:00`
-        );
-
-        return (
-          date.getMonth() ===
-            currentMonth &&
-          date.getFullYear() ===
-            currentYear
-        );
-      })
+      )
       .reduce(
         (total, appointment) =>
           total +
-          Number(appointment.fee || 0),
+          Number(
+            appointment.fee || 0
+          ),
         0
       );
 
-  /* Today's appointments */
+  /* =====================================================
+     TODAY'S APPOINTMENTS
+  ===================================================== */
+
   const todayAppointments =
     appointments
       .filter(
@@ -750,32 +1069,53 @@ const handleReject = (appointment) => {
       )
       .sort(
         (a, b) =>
-          getTimeInMinutes(a.time) -
-          getTimeInMinutes(b.time)
+          getTimeInMinutes(
+            a.time
+          ) -
+          getTimeInMinutes(
+            b.time
+          )
       );
-/* Upcoming appointments */
-const upcomingAppointments =
-  appointments
-    .filter(
-      (appointment) =>
-        appointment.date > getToday() &&
-        appointment.status === "Confirmed"
-    )
-    .sort((a, b) => {
-      const dateResult =
-        a.date.localeCompare(b.date);
 
-      if (dateResult !== 0) {
-        return dateResult;
-      }
+  /* =====================================================
+     UPCOMING APPOINTMENTS
+  ===================================================== */
 
-      return (
-        getTimeInMinutes(a.time) -
-        getTimeInMinutes(b.time)
+  const upcomingAppointments =
+    appointments
+      .filter(
+        (appointment) =>
+          appointment.date >
+            getToday() &&
+          appointment.status ===
+            "Confirmed"
+      )
+      .sort(
+        (a, b) => {
+          const dateResult =
+            a.date.localeCompare(
+              b.date
+            );
+
+          if (dateResult !== 0) {
+            return dateResult;
+          }
+
+          return (
+            getTimeInMinutes(
+              a.time
+            ) -
+            getTimeInMinutes(
+              b.time
+            )
+          );
+        }
       );
-    });
 
-  /* Past appointments */
+  /* =====================================================
+     PAST APPOINTMENTS
+  ===================================================== */
+
   const pastAppointments =
     appointments
       .filter(
@@ -783,11 +1123,17 @@ const upcomingAppointments =
           appointment.date <
           getToday()
       )
-      .sort((a, b) =>
-        b.date.localeCompare(a.date)
+      .sort(
+        (a, b) =>
+          b.date.localeCompare(
+            a.date
+          )
       );
 
-  /* Search and filter */
+  /* =====================================================
+     SEARCH AND FILTER
+  ===================================================== */
+
   const filteredAppointments =
     useMemo(() => {
       return appointments.filter(
@@ -810,7 +1156,8 @@ const upcomingAppointments =
               .includes(search);
 
           const matchesStatus =
-            statusFilter === "All" ||
+            statusFilter ===
+              "All" ||
             appointment.status ===
               statusFilter;
 
@@ -826,7 +1173,10 @@ const upcomingAppointments =
       statusFilter,
     ]);
 
-  /* Statistics */
+  /* =====================================================
+     STATISTICS
+  ===================================================== */
+
   const statistics = [
     {
       name: "Pending",
@@ -855,16 +1205,22 @@ const upcomingAppointments =
     },
   ];
 
-  const maxStatistic = Math.max(
-    ...statistics.map(
-      (item) => item.count
-    ),
-    1
-  );
+  const maxStatistic =
+    Math.max(
+      ...statistics.map(
+        (item) => item.count
+      ),
+      1
+    );
 
-  /* View pending appointments */
+  /* =====================================================
+     VIEW PENDING APPOINTMENTS
+  ===================================================== */
+
   const viewPending = () => {
-    setStatusFilter("Pending");
+    setStatusFilter(
+      "Pending"
+    );
 
     setTimeout(() => {
       document
@@ -877,14 +1233,20 @@ const upcomingAppointments =
     }, 100);
   };
 
-  /* Appointment card */
+  /* =====================================================
+     APPOINTMENT CARD
+  ===================================================== */
+
   const AppointmentCard = ({
     appointment,
   }) => {
     const statusClass =
       appointment.status
         .toLowerCase()
-        .replace(/\s+/g, "-");
+        .replace(
+          /\s+/g,
+          "-"
+        );
 
     return (
       <div className="appointment-card">
@@ -920,21 +1282,25 @@ const upcomingAppointments =
         <div className="appointment-info">
 
           <span>
-            📅 {appointment.date ||
+            📅{" "}
+            {appointment.date ||
               "Date not available"}
           </span>
 
           <span>
-            ⏰ {appointment.time ||
+            ⏰{" "}
+            {appointment.time ||
               "Time not available"}
           </span>
 
           <span>
-            💻 {appointment.type}
+            💻{" "}
+            {appointment.type}
           </span>
 
           <span>
-            💰 ₹{appointment.fee}
+            💰 ₹
+            {appointment.fee}
           </span>
 
         </div>
@@ -1035,10 +1401,16 @@ const upcomingAppointments =
     );
   };
 
+  /* =====================================================
+     RETURN UI
+  ===================================================== */
+
   return (
     <div className="lawyer-dashboard">
 
-      {/* Header */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
       <div className="lawyer-dashboard-header">
 
@@ -1105,6 +1477,7 @@ const upcomingAppointments =
                 {notifications.length ===
                 0 ? (
                   <div className="empty-state">
+
                     <div className="empty-state-icon">
                       🔔
                     </div>
@@ -1112,12 +1485,15 @@ const upcomingAppointments =
                     <p>
                       No notifications.
                     </p>
+
                   </div>
                 ) : (
                   notifications
                     .slice(0, 8)
                     .map(
-                      (notification) => (
+                      (
+                        notification
+                      ) => (
                         <div
                           key={
                             notification.id
@@ -1134,7 +1510,9 @@ const upcomingAppointments =
 
                             const appointment =
                               appointments.find(
-                                (item) =>
+                                (
+                                  item
+                                ) =>
                                   String(
                                     item.id
                                   ) ===
@@ -1143,7 +1521,9 @@ const upcomingAppointments =
                                   )
                               );
 
-                            if (appointment) {
+                            if (
+                              appointment
+                            ) {
                               setSelectedAppointment(
                                 appointment
                               );
@@ -1177,6 +1557,8 @@ const upcomingAppointments =
 
           </div>
 
+          {/* Refresh */}
+
           <button
             className="lawyer-btn lawyer-btn-primary"
             onClick={() => {
@@ -1189,6 +1571,8 @@ const upcomingAppointments =
           >
             🔄 Refresh
           </button>
+
+          {/* Home */}
 
           <button
             className="lawyer-btn lawyer-btn-secondary"
@@ -1212,7 +1596,9 @@ const upcomingAppointments =
           : "Loading..."}
       </p>
 
-      {/* Success message */}
+      {/* =================================================
+          SUCCESS MESSAGE
+      ================================================= */}
 
       {successMessage && (
         <div className="dashboard-success">
@@ -1220,7 +1606,9 @@ const upcomingAppointments =
         </div>
       )}
 
-      {/* Pending alert */}
+      {/* =================================================
+          PENDING ALERT
+      ================================================= */}
 
       {pendingAppointments.length >
         0 && (
@@ -1229,6 +1617,7 @@ const upcomingAppointments =
           <div className="pending-alert-content">
 
             <div>
+
               <h3>
                 🔔 New Booking Requests
               </h3>
@@ -1244,11 +1633,14 @@ const upcomingAppointments =
                   ? "s"
                   : ""}.
               </p>
+
             </div>
 
             <button
               className="lawyer-btn lawyer-btn-warning"
-              onClick={viewPending}
+              onClick={
+                viewPending
+              }
             >
               View Pending
             </button>
@@ -1258,234 +1650,24 @@ const upcomingAppointments =
         </div>
       )}
 
-      {/* Statistics cards */}
+      {/* =================================================
+          STATISTICS CARDS
+      ================================================= */}
 
-<div className="dashboard-stats">
+      <div className="dashboard-stats">
 
-  {/* First Row - 3 Cards */}
+        <div className="dashboard-stats-row dashboard-stats-row-top">
 
-  <div className="dashboard-stats-row dashboard-stats-row-top">
+          {/* Total */}
 
-    {/* Total Appointments */}
+          <div className="dashboard-stat-card">
 
-    <div className="dashboard-stat-card">
+            <div className="stat-top">
+              <span className="stat-icon">
+                📅
+              </span>
+            </div>
 
-      <div className="stat-top">
-        <span className="stat-icon">
-          📅
-        </span>
-      </div>
-
-      <h4>
-        Total Appointments
-      </h4>
-
-      <h2>
-        {totalAppointments}
-      </h2>
-
-      <p>
-        All appointments
-      </p>
-
-    </div>
-
-    {/* Pending */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          ⏳
-        </span>
-      </div>
-
-      <h4>
-        Pending
-      </h4>
-
-      <h2>
-        {pendingAppointments.length}
-      </h2>
-
-      <p>
-        Need action
-      </p>
-
-    </div>
-
-    {/* Confirmed */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          ✅
-        </span>
-      </div>
-
-      <h4>
-        Confirmed
-      </h4>
-
-      <h2>
-        {confirmedAppointments.length}
-      </h2>
-
-      <p>
-        Confirmed appointments
-      </p>
-
-    </div>
-
-  </div>
-
-
-  {/* Second Row - 4 Cards */}
-
-  <div className="dashboard-stats-row dashboard-stats-row-bottom">
-
-    {/* Completed */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          🏁
-        </span>
-      </div>
-
-      <h4>
-        Completed
-      </h4>
-
-      <h2>
-        {completedAppointments.length}
-      </h2>
-
-      <p>
-        Finished
-      </p>
-
-    </div>
-
-    {/* Rejected */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          ❌
-        </span>
-      </div>
-
-      <h4>
-        Rejected
-      </h4>
-
-      <h2>
-        {rejectedAppointments.length}
-      </h2>
-
-      <p>
-        Rejected requests
-      </p>
-
-    </div>
-
-    {/* Cancelled */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          🚫
-        </span>
-      </div>
-
-      <h4>
-        Cancelled
-      </h4>
-
-      <h2>
-        {cancelledAppointments.length}
-      </h2>
-
-      <p>
-        Cancelled appointments
-      </p>
-
-    </div>
-
-    {/* Estimated Earnings */}
-
-    <div className="dashboard-stat-card">
-
-      <div className="stat-top">
-        <span className="stat-icon">
-          💰
-        </span>
-      </div>
-
-      <h4>
-        Estimated Earnings
-      </h4>
-
-      <h2>
-        ₹{totalEarnings}
-      </h2>
-
-      <p>
-        Confirmed + completed
-      </p>
-
-    </div>
-
-  </div>
-
-</div>
-
-      {/* Appointment overview */}
-
-      <section className="dashboard-section">
-
-        <div className="dashboard-section-header">
-
-          <div>
-            <h2>
-              📅 Appointment Overview
-            </h2>
-
-            <p>
-              Quick overview of your appointments
-            </p>
-          </div>
-
-        </div>
-
-        <div className="overview-grid">
-
-          <div className="overview-card">
-            <h4>
-              Today's Appointments
-            </h4>
-
-            <h2>
-              {todayAppointments.length}
-            </h2>
-          </div>
-
-          <div className="overview-card">
-            <h4>
-              Upcoming Appointments
-            </h4>
-
-            <h2>
-              {upcomingAppointments.length}
-            </h2>
-          </div>
-
-          <div className="overview-card">
             <h4>
               Total Appointments
             </h4>
@@ -1493,19 +1675,239 @@ const upcomingAppointments =
             <h2>
               {totalAppointments}
             </h2>
+
+            <p>
+              All appointments
+            </p>
+
+          </div>
+
+          {/* Pending */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                ⏳
+              </span>
+            </div>
+
+            <h4>
+              Pending
+            </h4>
+
+            <h2>
+              {pendingAppointments.length}
+            </h2>
+
+            <p>
+              Need action
+            </p>
+
+          </div>
+
+          {/* Confirmed */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                ✅
+              </span>
+            </div>
+
+            <h4>
+              Confirmed
+            </h4>
+
+            <h2>
+              {confirmedAppointments.length}
+            </h2>
+
+            <p>
+              Confirmed appointments
+            </p>
+
           </div>
 
         </div>
 
-      </section>
+        <div className="dashboard-stats-row dashboard-stats-row-bottom">
 
-      {/* Lawyer status */}
+          {/* Completed */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                🏁
+              </span>
+            </div>
+
+            <h4>
+              Completed
+            </h4>
+
+            <h2>
+              {completedAppointments.length}
+            </h2>
+
+            <p>
+              Finished
+            </p>
+
+          </div>
+
+          {/* Rejected */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                ❌
+              </span>
+            </div>
+
+            <h4>
+              Rejected
+            </h4>
+
+            <h2>
+              {rejectedAppointments.length}
+            </h2>
+
+            <p>
+              Rejected requests
+            </p>
+
+          </div>
+
+          {/* Cancelled */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                🚫
+              </span>
+            </div>
+
+            <h4>
+              Cancelled
+            </h4>
+
+            <h2>
+              {cancelledAppointments.length}
+            </h2>
+
+            <p>
+              Cancelled appointments
+            </p>
+
+          </div>
+
+          {/* Earnings */}
+
+          <div className="dashboard-stat-card">
+
+            <div className="stat-top">
+              <span className="stat-icon">
+                💰
+              </span>
+            </div>
+
+            <h4>
+              Estimated Earnings
+            </h4>
+
+            <h2>
+              ₹{totalEarnings}
+            </h2>
+
+            <p>
+              Confirmed + completed
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* =================================================
+          APPOINTMENT OVERVIEW
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
+            <h2>
+              📅 Appointment Overview
+            </h2>
+
+            <p>
+              Quick overview of your appointments
+            </p>
+
+          </div>
+
+        </div>
+
+        <div className="overview-grid">
+
+          <div className="overview-card">
+
+            <h4>
+              Today's Appointments
+            </h4>
+
+            <h2>
+              {todayAppointments.length}
+            </h2>
+
+          </div>
+
+          <div className="overview-card">
+
+            <h4>
+              Upcoming Appointments
+            </h4>
+
+            <h2>
+              {upcomingAppointments.length}
+            </h2>
+
+          </div>
+
+          <div className="overview-card">
+
+            <h4>
+              Total Appointments
+            </h4>
+
+            <h2>
+              {totalAppointments}
+            </h2>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* =================================================
+          LAWYER STATUS
+      ================================================= */}
+
+      <section className="dashboard-section">
+
+        <div className="dashboard-section-header">
+
+          <div>
+
             <h2>
               🟢 Lawyer Status
             </h2>
@@ -1513,6 +1915,7 @@ const upcomingAppointments =
             <p>
               Control your availability status
             </p>
+
           </div>
 
         </div>
@@ -1527,13 +1930,16 @@ const upcomingAppointments =
 
             <select
               className="status-select"
-              value={onlineStatus}
+              value={
+                onlineStatus
+              }
               onChange={(event) =>
                 setOnlineStatus(
                   event.target.value
                 )
               }
             >
+
               <option>
                 Online
               </option>
@@ -1545,6 +1951,7 @@ const upcomingAppointments =
               <option>
                 Offline
               </option>
+
             </select>
 
           </div>
@@ -1557,13 +1964,16 @@ const upcomingAppointments =
 
             <select
               className="status-select"
-              value={appointmentStatus}
+              value={
+                appointmentStatus
+              }
               onChange={(event) =>
                 setAppointmentStatus(
                   event.target.value
                 )
               }
             >
+
               <option>
                 Accepting Appointments
               </option>
@@ -1575,6 +1985,7 @@ const upcomingAppointments =
               <option>
                 Not Accepting Appointments
               </option>
+
             </select>
 
           </div>
@@ -1583,13 +1994,16 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Earnings */}
+      {/* =================================================
+          EARNINGS
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               💰 Earnings Summary
             </h2>
@@ -1597,6 +2011,7 @@ const upcomingAppointments =
             <p>
               Your appointment earnings
             </p>
+
           </div>
 
         </div>
@@ -1604,6 +2019,7 @@ const upcomingAppointments =
         <div className="earnings-grid">
 
           <div className="earning-card">
+
             <h4>
               This Month
             </h4>
@@ -1611,9 +2027,11 @@ const upcomingAppointments =
             <h2>
               ₹{monthlyEarnings}
             </h2>
+
           </div>
 
           <div className="earning-card">
+
             <h4>
               Total Earnings
             </h4>
@@ -1621,9 +2039,11 @@ const upcomingAppointments =
             <h2>
               ₹{totalEarnings}
             </h2>
+
           </div>
 
           <div className="earning-card">
+
             <h4>
               Paid Appointments
             </h4>
@@ -1631,19 +2051,23 @@ const upcomingAppointments =
             <h2>
               {earningAppointments.length}
             </h2>
+
           </div>
 
         </div>
 
       </section>
 
-      {/* Statistics chart */}
+      {/* =================================================
+          STATISTICS CHART
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               📈 Dashboard Statistics
             </h2>
@@ -1651,59 +2075,66 @@ const upcomingAppointments =
             <p>
               Appointment status overview
             </p>
+
           </div>
 
         </div>
 
         <div className="statistics-chart">
 
-          {statistics.map((item) => {
-            const height =
-              item.count === 0
-                ? 5
-                : (item.count /
-                    maxStatistic) *
-                  180;
+          {statistics.map(
+            (item) => {
+              const height =
+                item.count === 0
+                  ? 5
+                  : (
+                      item.count /
+                      maxStatistic
+                    ) * 180;
 
-            return (
-              <div
-                className="chart-item"
-                key={item.name}
-              >
+              return (
+                <div
+                  className="chart-item"
+                  key={item.name}
+                >
 
-                <div className="chart-bar-area">
+                  <div className="chart-bar-area">
 
-                  <div
-                    className="chart-bar"
-                    style={{
-                      height:
-                        `${height}px`,
-                    }}
-                  >
-                    {item.count}
+                    <div
+                      className="chart-bar"
+                      style={{
+                        height:
+                          `${height}px`,
+                      }}
+                    >
+                      {item.count}
+                    </div>
+
                   </div>
 
+                  <p>
+                    {item.name}
+                  </p>
+
                 </div>
-
-                <p>
-                  {item.name}
-                </p>
-
-              </div>
-            );
-          })}
+              );
+            }
+          )}
 
         </div>
 
       </section>
 
-      {/* Today's appointments */}
+      {/* =================================================
+          TODAY'S APPOINTMENTS
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               📅 Today's Appointments
             </h2>
@@ -1711,6 +2142,7 @@ const upcomingAppointments =
             <p>
               Appointments scheduled for today
             </p>
+
           </div>
 
         </div>
@@ -1718,6 +2150,7 @@ const upcomingAppointments =
         {todayAppointments.length ===
         0 ? (
           <div className="empty-state">
+
             <div className="empty-state-icon">
               📅
             </div>
@@ -1725,13 +2158,18 @@ const upcomingAppointments =
             <p>
               No appointments today.
             </p>
+
           </div>
         ) : (
           todayAppointments.map(
             (appointment) => (
               <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
+                key={
+                  appointment.id
+                }
+                appointment={
+                  appointment
+                }
               />
             )
           )
@@ -1739,13 +2177,16 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Pending requests */}
+      {/* =================================================
+          PENDING REQUESTS
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               ⏳ Pending Booking Requests
             </h2>
@@ -1753,6 +2194,7 @@ const upcomingAppointments =
             <p>
               Review and manage new booking requests
             </p>
+
           </div>
 
         </div>
@@ -1760,6 +2202,7 @@ const upcomingAppointments =
         {pendingAppointments.length ===
         0 ? (
           <div className="empty-state">
+
             <div className="empty-state-icon">
               ✅
             </div>
@@ -1767,13 +2210,18 @@ const upcomingAppointments =
             <p>
               No pending booking requests.
             </p>
+
           </div>
         ) : (
           pendingAppointments.map(
             (appointment) => (
               <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
+                key={
+                  appointment.id
+                }
+                appointment={
+                  appointment
+                }
               />
             )
           )
@@ -1781,13 +2229,16 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Upcoming appointments */}
+      {/* =================================================
+          UPCOMING APPOINTMENTS
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               📅 Upcoming Appointments
             </h2>
@@ -1795,6 +2246,7 @@ const upcomingAppointments =
             <p>
               Your future confirmed appointments
             </p>
+
           </div>
 
         </div>
@@ -1802,6 +2254,7 @@ const upcomingAppointments =
         {upcomingAppointments.length ===
         0 ? (
           <div className="empty-state">
+
             <div className="empty-state-icon">
               📅
             </div>
@@ -1809,13 +2262,18 @@ const upcomingAppointments =
             <p>
               No upcoming appointments.
             </p>
+
           </div>
         ) : (
           upcomingAppointments.map(
             (appointment) => (
               <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
+                key={
+                  appointment.id
+                }
+                appointment={
+                  appointment
+                }
               />
             )
           )
@@ -1823,13 +2281,16 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Past appointments */}
+      {/* =================================================
+          PAST APPOINTMENTS
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               🕘 Past Appointments
             </h2>
@@ -1837,6 +2298,7 @@ const upcomingAppointments =
             <p>
               Previous appointments
             </p>
+
           </div>
 
         </div>
@@ -1844,6 +2306,7 @@ const upcomingAppointments =
         {pastAppointments.length ===
         0 ? (
           <div className="empty-state">
+
             <div className="empty-state-icon">
               🕘
             </div>
@@ -1851,13 +2314,18 @@ const upcomingAppointments =
             <p>
               No past appointments.
             </p>
+
           </div>
         ) : (
           pastAppointments.map(
             (appointment) => (
               <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
+                key={
+                  appointment.id
+                }
+                appointment={
+                  appointment
+                }
               />
             )
           )
@@ -1865,7 +2333,9 @@ const upcomingAppointments =
 
       </section>
 
-      {/* All appointments */}
+      {/* =================================================
+          ALL APPOINTMENTS
+      ================================================= */}
 
       <section
         className="dashboard-section"
@@ -1875,6 +2345,7 @@ const upcomingAppointments =
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               📋 All Appointments
             </h2>
@@ -1882,6 +2353,7 @@ const upcomingAppointments =
             <p>
               Search and manage all appointments
             </p>
+
           </div>
 
         </div>
@@ -1892,7 +2364,9 @@ const upcomingAppointments =
             className="search-input"
             type="text"
             placeholder="Search client, email, phone..."
-            value={searchTerm}
+            value={
+              searchTerm
+            }
             onChange={(event) =>
               setSearchTerm(
                 event.target.value
@@ -1902,13 +2376,16 @@ const upcomingAppointments =
 
           <select
             className="status-select"
-            value={statusFilter}
+            value={
+              statusFilter
+            }
             onChange={(event) =>
               setStatusFilter(
                 event.target.value
               )
             }
           >
+
             <option>
               All
             </option>
@@ -1932,6 +2409,7 @@ const upcomingAppointments =
             <option>
               Cancelled
             </option>
+
           </select>
 
         </div>
@@ -1953,8 +2431,12 @@ const upcomingAppointments =
           filteredAppointments.map(
             (appointment) => (
               <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
+                key={
+                  appointment.id
+                }
+                appointment={
+                  appointment
+                }
               />
             )
           )
@@ -1962,13 +2444,16 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Lawyer profile */}
+      {/* =================================================
+          LAWYER PROFILE
+      ================================================= */}
 
       <section className="dashboard-section">
 
         <div className="dashboard-section-header">
 
           <div>
+
             <h2>
               👨‍⚖️ Lawyer Profile
             </h2>
@@ -1976,6 +2461,7 @@ const upcomingAppointments =
             <p>
               Manage your professional profile
             </p>
+
           </div>
 
         </div>
@@ -2049,7 +2535,9 @@ const upcomingAppointments =
 
       </section>
 
-      {/* Client details modal */}
+      {/* =================================================
+          CLIENT DETAILS MODAL
+      ================================================= */}
 
       {selectedClient && (
         <div className="dashboard-modal-overlay">
@@ -2065,7 +2553,9 @@ const upcomingAppointments =
               <button
                 className="modal-close"
                 onClick={() =>
-                  setSelectedClient(null)
+                  setSelectedClient(
+                    null
+                  )
                 }
               >
                 ×
@@ -2074,73 +2564,101 @@ const upcomingAppointments =
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Name
               </span>
 
               <strong>
-                {selectedClient.client}
+                {
+                  selectedClient.client
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Email
               </span>
 
               <strong>
-                {selectedClient.userEmail}
+                {
+                  selectedClient.userEmail
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Phone
               </span>
 
               <strong>
-                {selectedClient.userPhone}
+                {
+                  selectedClient.userPhone
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Consultation
               </span>
 
               <strong>
-                {selectedClient.type}
+                {
+                  selectedClient.type
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Reason
               </span>
 
               <strong>
-                {selectedClient.reason}
+                {
+                  selectedClient.reason
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Date
               </span>
 
               <strong>
-                {selectedClient.date}
+                {
+                  selectedClient.date
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Time
               </span>
 
               <strong>
-                {selectedClient.time}
+                {
+                  selectedClient.time
+                }
               </strong>
+
             </div>
 
             <div className="modal-actions">
@@ -2148,7 +2666,9 @@ const upcomingAppointments =
               <button
                 className="lawyer-btn lawyer-btn-secondary"
                 onClick={() =>
-                  setSelectedClient(null)
+                  setSelectedClient(
+                    null
+                  )
                 }
               >
                 Close
@@ -2161,7 +2681,9 @@ const upcomingAppointments =
         </div>
       )}
 
-      {/* Appointment details modal */}
+      {/* =================================================
+          APPOINTMENT DETAILS MODAL
+      ================================================= */}
 
       {selectedAppointment && (
         <div className="dashboard-modal-overlay">
@@ -2177,7 +2699,9 @@ const upcomingAppointments =
               <button
                 className="modal-close"
                 onClick={() =>
-                  setSelectedAppointment(null)
+                  setSelectedAppointment(
+                    null
+                  )
                 }
               >
                 ×
@@ -2186,93 +2710,130 @@ const upcomingAppointments =
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Client
               </span>
 
               <strong>
-                {selectedAppointment.client}
+                {
+                  selectedAppointment.client
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Email
               </span>
 
               <strong>
-                {selectedAppointment.userEmail}
+                {
+                  selectedAppointment.userEmail
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Phone
               </span>
 
               <strong>
-                {selectedAppointment.userPhone}
+                {
+                  selectedAppointment.userPhone
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Date
               </span>
 
               <strong>
-                {selectedAppointment.date}
+                {
+                  selectedAppointment.date
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Time
               </span>
 
               <strong>
-                {selectedAppointment.time}
+                {
+                  selectedAppointment.time
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Consultation
               </span>
 
               <strong>
-                {selectedAppointment.type}
+                {
+                  selectedAppointment.type
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Reason
               </span>
 
               <strong>
-                {selectedAppointment.reason}
+                {
+                  selectedAppointment.reason
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Fee
               </span>
 
               <strong>
-                ₹{selectedAppointment.fee}
+                ₹
+                {
+                  selectedAppointment.fee
+                }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Status
               </span>
 
               <strong>
-                {selectedAppointment.status}
+                {
+                  selectedAppointment.status
+                }
               </strong>
+
             </div>
 
             <div className="modal-actions">
@@ -2337,7 +2898,9 @@ const upcomingAppointments =
               <button
                 className="lawyer-btn lawyer-btn-secondary"
                 onClick={() =>
-                  setSelectedAppointment(null)
+                  setSelectedAppointment(
+                    null
+                  )
                 }
               >
                 Close
@@ -2350,7 +2913,9 @@ const upcomingAppointments =
         </div>
       )}
 
-      {/* Reschedule modal */}
+      {/* =================================================
+          RESCHEDULE MODAL
+      ================================================= */}
 
       {rescheduleAppointment && (
         <div className="dashboard-modal-overlay">
@@ -2380,6 +2945,7 @@ const upcomingAppointments =
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Client
               </span>
@@ -2389,9 +2955,11 @@ const upcomingAppointments =
                   rescheduleAppointment.client
                 }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Current Date
               </span>
@@ -2401,9 +2969,11 @@ const upcomingAppointments =
                   rescheduleAppointment.date
                 }
               </strong>
+
             </div>
 
             <div className="modal-detail">
+
               <span>
                 Current Time
               </span>
@@ -2413,11 +2983,13 @@ const upcomingAppointments =
                   rescheduleAppointment.time
                 }
               </strong>
+
             </div>
 
             <div
               style={{
-                marginTop: "20px",
+                marginTop:
+                  "20px",
               }}
             >
 
@@ -2428,7 +3000,9 @@ const upcomingAppointments =
               <input
                 className="search-input"
                 type="date"
-                value={newDate}
+                value={
+                  newDate
+                }
                 min={getToday()}
                 onChange={(event) => {
                   setNewDate(
@@ -2438,8 +3012,10 @@ const upcomingAppointments =
                   setNewTime("");
                 }}
                 style={{
-                  width: "100%",
-                  marginTop: "8px",
+                  width:
+                    "100%",
+                  marginTop:
+                    "8px",
                 }}
               />
 
@@ -2447,7 +3023,8 @@ const upcomingAppointments =
 
             <div
               style={{
-                marginTop: "16px",
+                marginTop:
+                  "16px",
               }}
             >
 
@@ -2457,14 +3034,17 @@ const upcomingAppointments =
 
               <select
                 className="status-select"
-                value={newTime}
+                value={
+                  newTime
+                }
                 onChange={(event) =>
                   setNewTime(
                     event.target.value
                   )
                 }
                 style={{
-                  marginTop: "8px",
+                  marginTop:
+                    "8px",
                 }}
               >
 

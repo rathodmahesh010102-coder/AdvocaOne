@@ -4,7 +4,8 @@ import "../App.css";
 import lawyers from "../data/lawyers";
 
 function Home() {
-  const [menuOpen,setMenuOpen] =useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const [searchPractice, setSearchPractice] = useState("");
   const [searchLocation, setSearchLocation] = useState("");
   const [searchName, setSearchName] = useState("");
@@ -13,7 +14,10 @@ function Home() {
   const [availableOnly, setAvailableOnly] = useState(false);
 
   const [registeredLawyers, setRegisteredLawyers] = useState([]);
+  const [lawyerAvailabilities, setLawyerAvailabilities] =
+    useState({});
 
+  // Load registered lawyers
   const loadRegisteredLawyers = () => {
     try {
       const savedLawyers = localStorage.getItem(
@@ -25,139 +29,293 @@ function Home() {
         : [];
 
       setRegisteredLawyers(
-        Array.isArray(parsedLawyers) ? parsedLawyers : []
+        Array.isArray(parsedLawyers)
+          ? parsedLawyers
+          : []
       );
     } catch (error) {
-      console.error("Error loading lawyers:", error);
+      console.error(
+        "Error loading lawyers:",
+        error
+      );
+
       setRegisteredLawyers([]);
     }
   };
 
+  // Load lawyer-specific availability
+  const loadLawyerAvailabilities = () => {
+    try {
+      const savedAvailability =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAvailabilities"
+          ) || "{}"
+        ) || {};
+
+      setLawyerAvailabilities(
+        savedAvailability
+      );
+    } catch (error) {
+      console.error(
+        "Error loading lawyer availability:",
+        error
+      );
+
+      setLawyerAvailabilities({});
+    }
+  };
+
+  // Load data when page opens
   useEffect(() => {
     loadRegisteredLawyers();
+    loadLawyerAvailabilities();
 
-    window.addEventListener("storage", loadRegisteredLawyers);
-    window.addEventListener("focus", loadRegisteredLawyers);
+    window.addEventListener(
+      "storage",
+      loadRegisteredLawyers
+    );
+
+    window.addEventListener(
+      "storage",
+      loadLawyerAvailabilities
+    );
+
+    window.addEventListener(
+      "focus",
+      loadRegisteredLawyers
+    );
+
+    window.addEventListener(
+      "focus",
+      loadLawyerAvailabilities
+    );
 
     return () => {
-      window.removeEventListener("storage", loadRegisteredLawyers);
-      window.removeEventListener("focus", loadRegisteredLawyers);
+      window.removeEventListener(
+        "storage",
+        loadRegisteredLawyers
+      );
+
+      window.removeEventListener(
+        "storage",
+        loadLawyerAvailabilities
+      );
+
+      window.removeEventListener(
+        "focus",
+        loadRegisteredLawyers
+      );
+
+      window.removeEventListener(
+        "focus",
+        loadLawyerAvailabilities
+      );
     };
   }, []);
 
-  const approvedRegisteredLawyers = registeredLawyers
-    .filter(
-      (lawyer) =>
-        String(lawyer.status || "").toLowerCase() === "approved"
-    )
-    .map((lawyer) => ({
-      ...lawyer,
-      location:
-        lawyer.city &&
-        lawyer.city !== "Not Selected"
-          ? lawyer.city
-          : "",
-      consultationFee: Number(lawyer.fee) || 0,
-      experience: Number(lawyer.experience) || 0,
-      available: Array.isArray(lawyer.slots) && lawyer.slots.length > 0,
-      onlineStatus: lawyer.onlineStatus || "Offline",
-      appointmentStatus:
-        lawyer.appointmentStatus || "Accepting Appointments",
-      nextAvailable:
-        lawyer.nextAvailable || "Contact for availability",
-      slots: Array.isArray(lawyer.slots)
-        ? lawyer.slots
-        : [],
-    }));
+  // Check whether a lawyer has at least one available slot
+  const hasAvailableSlots = (lawyer) => {
+    const lawyerEmail =
+      lawyer.email?.trim().toLowerCase() || "";
 
+    // Registered lawyer availability
+    if (lawyerEmail) {
+      const availability =
+        lawyerAvailabilities[lawyerEmail];
+
+      if (availability) {
+        return Object.values(availability).some(
+          (slots) =>
+            Array.isArray(slots) &&
+            slots.length > 0
+        );
+      }
+    }
+
+    // Fallback for static/demo lawyers
+    if (Array.isArray(lawyer.slots)) {
+      return lawyer.slots.length > 0;
+    }
+
+    return false;
+  };
+
+  // Get registered lawyers approved by admin
+  const approvedRegisteredLawyers =
+    registeredLawyers
+      .filter(
+        (lawyer) =>
+          String(
+            lawyer.status || ""
+          ).toLowerCase() === "approved"
+      )
+      .map((lawyer) => {
+        const lawyerEmail =
+          lawyer.email?.trim().toLowerCase() || "";
+
+        const specificAvailability =
+          lawyerEmail
+            ? lawyerAvailabilities[
+                lawyerEmail
+              ]
+            : null;
+
+        const hasSlots =
+          specificAvailability &&
+          Object.values(
+            specificAvailability
+          ).some(
+            (slots) =>
+              Array.isArray(slots) &&
+              slots.length > 0
+          );
+
+        return {
+          ...lawyer,
+
+          location:
+            lawyer.city &&
+            lawyer.city !== "Not Selected"
+              ? lawyer.city
+              : "",
+
+          consultationFee:
+            Number(lawyer.fee) || 0,
+
+          experience:
+            Number(lawyer.experience) || 0,
+
+          available:
+            hasSlots ||
+            hasAvailableSlots(lawyer),
+
+          onlineStatus:
+            lawyer.onlineStatus ||
+            "Offline",
+
+          appointmentStatus:
+            lawyer.appointmentStatus ||
+            "Accepting Appointments",
+
+          nextAvailable:
+            lawyer.nextAvailable ||
+            "Contact for availability",
+
+          slots:
+            Array.isArray(lawyer.slots)
+              ? lawyer.slots
+              : [],
+        };
+      });
+
+  // Combine demo lawyers and registered lawyers
   const allLawyers = Array.from(
     new Map(
-      [...lawyers, ...approvedRegisteredLawyers].map(
-        (lawyer) => [
-          `${lawyer.id}-${lawyer.name}`,
-          lawyer,
-        ]
-      )
+      [
+        ...lawyers,
+        ...approvedRegisteredLawyers,
+      ].map((lawyer) => [
+        `${lawyer.id}-${lawyer.name}`,
+        lawyer,
+      ])
     ).values()
   );
 
-  const filteredLawyers = allLawyers.filter((lawyer) => {
-    const lawyerSpecialization = String(
-      lawyer.specialization || ""
-    )
-      .trim()
-      .toLowerCase();
+  // Search and filter lawyers
+  const filteredLawyers = allLawyers.filter(
+    (lawyer) => {
+      const lawyerSpecialization =
+        String(
+          lawyer.specialization || ""
+        )
+          .trim()
+          .toLowerCase();
 
-    const lawyerLocation = String(
-      lawyer.location || lawyer.city || ""
-    )
-      .trim()
-      .toLowerCase();
+      const lawyerLocation =
+        String(
+          lawyer.location ||
+            lawyer.city ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
 
-    const lawyerName = String(
-      lawyer.name || ""
-    )
-      .trim()
-      .toLowerCase();
+      const lawyerName =
+        String(lawyer.name || "")
+          .trim()
+          .toLowerCase();
 
-    const practice = searchPractice
-      .trim()
-      .toLowerCase();
+      const practice =
+        searchPractice
+          .trim()
+          .toLowerCase();
 
-    const location = searchLocation
-      .trim()
-      .toLowerCase();
+      const location =
+        searchLocation
+          .trim()
+          .toLowerCase();
 
-    const name = searchName
-      .trim()
-      .toLowerCase();
+      const name =
+        searchName
+          .trim()
+          .toLowerCase();
 
-    const practiceMatch =
-      practice === "" ||
-      lawyerSpecialization === practice;
+      const practiceMatch =
+        practice === "" ||
+        lawyerSpecialization ===
+          practice;
 
-    const locationMatch =
-      location === "" ||
-      lawyerLocation.includes(location);
+      const locationMatch =
+        location === "" ||
+        lawyerLocation.includes(
+          location
+        );
 
-    const nameMatch =
-      name === "" ||
-      lawyerName.includes(name);
+      const nameMatch =
+        name === "" ||
+        lawyerName.includes(name);
 
-    const experienceMatch =
-      searchExperience === "" ||
-      Number(lawyer.experience || 0) >=
-        Number(searchExperience);
+      const experienceMatch =
+        searchExperience === "" ||
+        Number(
+          lawyer.experience || 0
+        ) >= Number(searchExperience);
 
-    const feeMatch =
-      searchFee === "" ||
-      Number(
-        lawyer.consultationFee ??
-          lawyer.fee ??
-          0
-      ) <= Number(searchFee);
+      const feeMatch =
+        searchFee === "" ||
+        Number(
+          lawyer.consultationFee ??
+            lawyer.fee ??
+            0
+        ) <= Number(searchFee);
 
-    const availabilityMatch =
-      !availableOnly ||
-      lawyer.available === true;
+      const availabilityMatch =
+        !availableOnly ||
+        lawyer.available === true;
 
-    return (
-      practiceMatch &&
-      locationMatch &&
-      nameMatch &&
-      experienceMatch &&
-      feeMatch &&
-      availabilityMatch
-    );
-  });
+      return (
+        practiceMatch &&
+        locationMatch &&
+        nameMatch &&
+        experienceMatch &&
+        feeMatch &&
+        availabilityMatch
+      );
+    }
+  );
 
+  // Scroll to lawyers section
   useEffect(() => {
     const timer = setTimeout(() => {
       const lawyersSection =
-        document.getElementById("lawyers");
+        document.getElementById(
+          "lawyers"
+        );
 
       if (
-        window.location.hash === "#lawyers" &&
+        window.location.hash ===
+          "#lawyers" &&
         lawyersSection
       ) {
         lawyersSection.scrollIntoView({
@@ -166,9 +324,11 @@ function Home() {
       }
     }, 100);
 
-    return () => clearTimeout(timer);
+    return () =>
+      clearTimeout(timer);
   }, []);
 
+  // Clear all filters
   const clearFilters = () => {
     setSearchPractice("");
     setSearchLocation("");
@@ -184,7 +344,10 @@ function Home() {
       });
   };
 
-  const handlePracticeClick = (practice) => {
+  // Practice area click
+  const handlePracticeClick = (
+    practice
+  ) => {
     setSearchPractice(practice);
 
     document
@@ -197,109 +360,140 @@ function Home() {
   return (
     <div className="advocaone">
 
+      {/* ==============================
+          NAVBAR
+      ============================== */}
+
       <nav className="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-  <div className="container">
 
-    <Link
-      className="navbar-brand fw-bold"
-      to="/"
-      onClick={() => setMenuOpen(false)}
-    >
-      ⚖️ AdvocaOne
-    </Link>
+        <div className="container">
 
-    {/* Mobile Menu Button */}
-    <button
-      className="navbar-toggler"
-      type="button"
-      onClick={() => setMenuOpen(!menuOpen)}
-      aria-label="Toggle navigation"
-      aria-expanded={menuOpen}
-    >
-      <span className="navbar-toggler-icon"></span>
-    </button>
-
-    {/* Navigation Menu */}
-    <div
-      className={`collapse navbar-collapse ${
-        menuOpen ? "show" : ""
-      }`}
-      id="navbarNav"
-    >
-      <ul className="navbar-nav ms-auto align-items-lg-center">
-
-        <li className="nav-item">
-          <a
-            className="nav-link"
-            href="#home"
-            onClick={() => setMenuOpen(false)}
+          <Link
+            className="navbar-brand fw-bold"
+            to="/"
+            onClick={() =>
+              setMenuOpen(false)
+            }
           >
-            Home
-          </a>
-        </li>
+            ⚖️ AdvocaOne
+          </Link>
 
-        <li className="nav-item">
-          <a
-            className="nav-link"
-            href="#lawyers"
-            onClick={() => setMenuOpen(false)}
+          {/* Mobile Menu Button */}
+          <button
+            className="navbar-toggler"
+            type="button"
+            onClick={() =>
+              setMenuOpen(!menuOpen)
+            }
+            aria-label="Toggle navigation"
+            aria-expanded={menuOpen}
           >
-            Find Lawyers
-          </a>
-        </li>
+            <span className="navbar-toggler-icon"></span>
+          </button>
 
-        <li className="nav-item">
-          <a
-            className="nav-link"
-            href="#practice"
-            onClick={() => setMenuOpen(false)}
+          {/* Navigation Menu */}
+          <div
+            className={`collapse navbar-collapse ${
+              menuOpen
+                ? "show"
+                : ""
+            }`}
+            id="navbarNav"
           >
-            Practice Areas
-          </a>
-        </li>
+            <ul className="navbar-nav ms-auto align-items-lg-center">
 
-        <li className="nav-item">
-          <a
-            className="nav-link"
-            href="#how-it-works"
-            onClick={() => setMenuOpen(false)}
-          >
-            How It Works
-          </a>
-        </li>
+              <li className="nav-item">
+                <a
+                  className="nav-link"
+                  href="#home"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                >
+                  Home
+                </a>
+              </li>
 
-        <li className="nav-item ms-lg-3 mt-2 mt-lg-0">
-          <div className="d-flex gap-2">
+              <li className="nav-item">
+                <a
+                  className="nav-link"
+                  href="#lawyers"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                >
+                  Find Lawyers
+                </a>
+              </li>
 
-            <Link
-              className="btn btn-outline-light px-4"
-              to="/register"
-              onClick={() => setMenuOpen(false)}
-            >
-              Register
-            </Link>
+              <li className="nav-item">
+                <a
+                  className="nav-link"
+                  href="#practice"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                >
+                  Practice Areas
+                </a>
+              </li>
 
-            <Link
-              className="btn btn-primary px-4"
-              to="/login"
-              onClick={() => setMenuOpen(false)}
-            >
-              Login
-            </Link>
+              <li className="nav-item">
+                <a
+                  className="nav-link"
+                  href="#how-it-works"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                >
+                  How It Works
+                </a>
+              </li>
 
+              <li className="nav-item ms-lg-3 mt-2 mt-lg-0">
+
+                <div className="d-flex gap-2">
+
+                  <Link
+                    className="btn btn-outline-light px-4"
+                    to="/register"
+                    onClick={() =>
+                      setMenuOpen(false)
+                    }
+                  >
+                    Register
+                  </Link>
+
+                  <Link
+                    className="btn btn-primary px-4"
+                    to="/login"
+                    onClick={() =>
+                      setMenuOpen(false)
+                    }
+                  >
+                    Login
+                  </Link>
+
+                </div>
+
+              </li>
+
+            </ul>
           </div>
-        </li>
 
-      </ul>
-    </div>
+        </div>
 
-  </div>
-</nav>
+      </nav>
+
+      {/* ==============================
+          HERO SECTION
+      ============================== */}
 
       <section
         id="home"
         className="hero-section"
       >
+
         <div className="container">
 
           <div className="row align-items-center min-vh-100">
@@ -311,17 +505,22 @@ function Home() {
               </span>
 
               <h1 className="display-4 fw-bold">
+
                 Find the Right Lawyer{" "}
+
                 <span className="text-primary">
                   for Your Case
                 </span>
+
               </h1>
 
               <p className="lead text-muted mt-4">
+
                 Connect with verified lawyers,
                 explore their expertise, check
                 availability, and book a legal
                 consultation online.
+
               </p>
 
               <div className="hero-buttons mt-4">
@@ -367,12 +566,18 @@ function Home() {
           </div>
 
         </div>
+
       </section>
+
+      {/* ==============================
+          FIND LAWYERS
+      ============================== */}
 
       <section
         id="lawyers"
         className="search-section py-5"
       >
+
         <div className="container">
 
           <div className="text-center mb-5">
@@ -389,10 +594,12 @@ function Home() {
 
           </div>
 
+          {/* Search Box */}
           <div className="search-box lawyer-search-box shadow p-4 rounded">
 
             <div className="row g-3">
 
+              {/* Practice Area */}
               <div className="col-md-4">
 
                 <label className="form-label">
@@ -465,6 +672,7 @@ function Home() {
 
               </div>
 
+              {/* Location */}
               <div className="col-md-4">
 
                 <label className="form-label">
@@ -485,6 +693,7 @@ function Home() {
 
               </div>
 
+              {/* Lawyer Name */}
               <div className="col-md-4">
 
                 <label className="form-label">
@@ -505,6 +714,7 @@ function Home() {
 
               </div>
 
+              {/* Experience */}
               <div className="col-md-4">
 
                 <label className="form-label">
@@ -545,6 +755,7 @@ function Home() {
 
               </div>
 
+              {/* Fee */}
               <div className="col-md-4">
 
                 <label className="form-label">
@@ -585,6 +796,7 @@ function Home() {
 
               </div>
 
+              {/* Availability */}
               <div className="col-md-4 d-flex align-items-end">
 
                 <div className="form-check mb-2">
@@ -593,7 +805,9 @@ function Home() {
                     className="form-check-input"
                     type="checkbox"
                     id="availableOnly"
-                    checked={availableOnly}
+                    checked={
+                      availableOnly
+                    }
                     onChange={(e) =>
                       setAvailableOnly(
                         e.target.checked
@@ -614,6 +828,7 @@ function Home() {
 
             </div>
 
+            {/* Search Buttons */}
             <div className="text-center mt-4">
 
               <button
@@ -621,9 +836,12 @@ function Home() {
                 className="btn btn-primary px-5 me-2"
                 onClick={() =>
                   document
-                    .getElementById("lawyers")
+                    .getElementById(
+                      "lawyers"
+                    )
                     ?.scrollIntoView({
-                      behavior: "smooth",
+                      behavior:
+                        "smooth",
                     })
                 }
               >
@@ -633,7 +851,9 @@ function Home() {
               <button
                 type="button"
                 className="btn btn-outline-secondary px-5"
-                onClick={clearFilters}
+                onClick={
+                  clearFilters
+                }
               >
                 Clear
               </button>
@@ -642,6 +862,7 @@ function Home() {
 
           </div>
 
+          {/* Lawyer Results */}
           <div className="mt-5">
 
             <h2 className="text-center mb-2">
@@ -650,144 +871,180 @@ function Home() {
 
             {searchPractice && (
               <p className="text-center text-muted mb-4">
+
                 Showing lawyers for:{" "}
+
                 <strong>
                   {searchPractice}
                 </strong>
+
               </p>
             )}
 
             <div className="row">
 
-              {filteredLawyers.length > 0 ? (
+              {filteredLawyers.length >
+              0 ? (
 
-                filteredLawyers.map((lawyer) => {
+                filteredLawyers.map(
+                  (lawyer) => {
 
-                  const onlineStatusClass =
-                    lawyer.onlineStatus === "Online"
-                      ? "badge bg-success"
-                      : lawyer.onlineStatus === "Away"
-                      ? "badge bg-warning text-dark"
-                      : "badge bg-danger";
+                    const onlineStatusClass =
+                      lawyer.onlineStatus ===
+                      "Online"
+                        ? "badge bg-success"
+                        : lawyer.onlineStatus ===
+                          "Away"
+                        ? "badge bg-warning text-dark"
+                        : "badge bg-danger";
 
-                  const appointmentStatusClass =
-                    lawyer.appointmentStatus ===
-                    "Accepting Appointments"
-                      ? "badge bg-success"
-                      : lawyer.appointmentStatus ===
-                        "Busy"
-                      ? "badge bg-warning text-dark"
-                      : "badge bg-danger";
+                    const appointmentStatusClass =
+                      lawyer.appointmentStatus ===
+                      "Accepting Appointments"
+                        ? "badge bg-success"
+                        : lawyer.appointmentStatus ===
+                          "Busy"
+                        ? "badge bg-warning text-dark"
+                        : "badge bg-danger";
 
-                  return (
-                    <div
-                      className="col-md-6 col-lg-3 mb-4"
-                      key={`${lawyer.id}-${lawyer.name}`}
-                    >
+                    return (
+                      <div
+                        className="col-md-6 col-lg-3 mb-4"
+                        key={`${lawyer.id}-${lawyer.name}`}
+                      >
 
-                      <div className="card lawyer-card h-100 shadow-sm">
+                        <div className="card lawyer-card h-100 shadow-sm">
 
-                        <div className="card-body">
+                          <div className="card-body">
 
-                          <div className="lawyer-avatar">
-                            ⚖️
-                          </div>
+                            {/* Avatar */}
+                            <div className="lawyer-avatar">
+                              ⚖️
+                            </div>
 
-                          <h5 className="card-title lawyer-name">
-                            {lawyer.name}
-                          </h5>
+                            {/* Name */}
+                            <h5 className="card-title lawyer-name">
+                              {lawyer.name}
+                            </h5>
 
-                          <hr />
+                            <hr />
 
-                          <p className="card-text">
-                            <strong>
-                              Specialization:
-                            </strong>{" "}
-                            {lawyer.specialization}
-                          </p>
+                            {/* Specialization */}
+                            <p className="card-text">
+                              <strong>
+                                Specialization:
+                              </strong>{" "}
+                              {lawyer.specialization}
+                            </p>
 
-                          <p className="card-text">
-                            <strong>
-                              Location:
-                            </strong>{" "}
-                            {lawyer.location ||
-                              "Not specified"}
-                          </p>
+                            {/* Location */}
+                            <p className="card-text">
+                              <strong>
+                                Location:
+                              </strong>{" "}
+                              {lawyer.location ||
+                                "Not specified"}
+                            </p>
 
-                          <p className="card-text">
-                            <strong>
-                              Experience:
-                            </strong>{" "}
-                            {lawyer.experience} years
-                          </p>
+                            {/* Experience */}
+                            <p className="card-text">
+                              <strong>
+                                Experience:
+                              </strong>{" "}
+                              {lawyer.experience}{" "}
+                              years
+                            </p>
 
-                          <p className="card-text consultation-fee">
-                            <strong>
-                              Consultation:
-                            </strong>{" "}
-                            ₹
-                            {Number(
-                              lawyer.consultationFee ||
-                                lawyer.fee ||
-                                0
-                            )}
-                          </p>
+                            {/* Fee */}
+                            <p className="card-text consultation-fee">
 
-                          <div className="d-flex flex-wrap gap-2 mb-3">
+                              <strong>
+                                Consultation:
+                              </strong>{" "}
 
-                            <span
-                              className={
-                                onlineStatusClass
+                              ₹
+                              {Number(
+                                lawyer.consultationFee ||
+                                  lawyer.fee ||
+                                  0
+                              )}
+
+                            </p>
+
+                            {/* Status Badges */}
+                            <div className="d-flex flex-wrap gap-2 mb-3">
+
+                              <span
+                                className={
+                                  onlineStatusClass
+                                }
+                              >
+
+                                {lawyer.onlineStatus ===
+                                "Online"
+                                  ? "🟢"
+                                  : lawyer.onlineStatus ===
+                                    "Away"
+                                  ? "🟡"
+                                  : "🔴"}{" "}
+
+                                {
+                                  lawyer.onlineStatus
+                                }
+
+                              </span>
+
+                              <span
+                                className={
+                                  appointmentStatusClass
+                                }
+                              >
+
+                                {lawyer.appointmentStatus ===
+                                "Accepting Appointments"
+                                  ? "🟢"
+                                  : lawyer.appointmentStatus ===
+                                    "Busy"
+                                  ? "🟡"
+                                  : "🔴"}{" "}
+
+                                {
+                                  lawyer.appointmentStatus
+                                }
+
+                              </span>
+
+                            </div>
+
+                            {/* Next Available */}
+                            <p className="card-text">
+
+                              <strong>
+                                Next Available:
+                              </strong>{" "}
+
+                              {
+                                lawyer.nextAvailable
                               }
-                            >
-                              {lawyer.onlineStatus ===
-                              "Online"
-                                ? "🟢"
-                                : lawyer.onlineStatus ===
-                                  "Away"
-                                ? "🟡"
-                                : "🔴"}{" "}
-                              {lawyer.onlineStatus}
-                            </span>
 
-                            <span
-                              className={
-                                appointmentStatusClass
-                              }
+                            </p>
+
+                            {/* Profile */}
+                            <Link
+                              to={`/lawyer/${lawyer.id}`}
+                              className="btn btn-primary w-100 mt-3 profile-button"
                             >
-                              {lawyer.appointmentStatus ===
-                              "Accepting Appointments"
-                                ? "🟢"
-                                : lawyer.appointmentStatus ===
-                                  "Busy"
-                                ? "🟡"
-                                : "🔴"}{" "}
-                              {lawyer.appointmentStatus}
-                            </span>
+                              View Profile
+                            </Link>
 
                           </div>
-
-                          <p className="card-text">
-                            <strong>
-                              Next Available:
-                            </strong>{" "}
-                            {lawyer.nextAvailable}
-                          </p>
-
-                          <Link
-                            to={`/lawyer/${lawyer.id}`}
-                            className="btn btn-primary w-100 mt-3 profile-button"
-                          >
-                            View Profile
-                          </Link>
 
                         </div>
 
                       </div>
-
-                    </div>
-                  );
-                })
+                    );
+                  }
+                )
 
               ) : (
 
@@ -807,7 +1064,12 @@ function Home() {
           </div>
 
         </div>
+
       </section>
+
+      {/* ==============================
+          PRACTICE AREAS
+      ============================== */}
 
       <section
         id="practice"
@@ -835,7 +1097,9 @@ function Home() {
               icon="⚖️"
               title="Criminal Law"
               onClick={() =>
-                handlePracticeClick("Criminal Law")
+                handlePracticeClick(
+                  "Criminal Law"
+                )
               }
             />
 
@@ -843,7 +1107,9 @@ function Home() {
               icon="👨‍👩‍👧"
               title="Family Law"
               onClick={() =>
-                handlePracticeClick("Family Law")
+                handlePracticeClick(
+                  "Family Law"
+                )
               }
             />
 
@@ -851,7 +1117,9 @@ function Home() {
               icon="🏢"
               title="Corporate Law"
               onClick={() =>
-                handlePracticeClick("Corporate Law")
+                handlePracticeClick(
+                  "Corporate Law"
+                )
               }
             />
 
@@ -859,7 +1127,9 @@ function Home() {
               icon="🏠"
               title="Property Law"
               onClick={() =>
-                handlePracticeClick("Property Law")
+                handlePracticeClick(
+                  "Property Law"
+                )
               }
             />
 
@@ -867,7 +1137,9 @@ function Home() {
               icon="💻"
               title="Cyber Law"
               onClick={() =>
-                handlePracticeClick("Cyber Law")
+                handlePracticeClick(
+                  "Cyber Law"
+                )
               }
             />
 
@@ -875,7 +1147,9 @@ function Home() {
               icon="📄"
               title="Consumer Law"
               onClick={() =>
-                handlePracticeClick("Consumer Law")
+                handlePracticeClick(
+                  "Consumer Law"
+                )
               }
             />
 
@@ -883,7 +1157,9 @@ function Home() {
               icon="💰"
               title="Tax Law"
               onClick={() =>
-                handlePracticeClick("Tax Law")
+                handlePracticeClick(
+                  "Tax Law"
+                )
               }
             />
 
@@ -891,7 +1167,9 @@ function Home() {
               icon="🏛️"
               title="Civil Law"
               onClick={() =>
-                handlePracticeClick("Civil Law")
+                handlePracticeClick(
+                  "Civil Law"
+                )
               }
             />
 
@@ -899,7 +1177,9 @@ function Home() {
               icon="👷"
               title="Labor Law"
               onClick={() =>
-                handlePracticeClick("Labor Law")
+                handlePracticeClick(
+                  "Labor Law"
+                )
               }
             />
 
@@ -938,6 +1218,10 @@ function Home() {
         </div>
 
       </section>
+
+      {/* ==============================
+          HOW IT WORKS
+      ============================== */}
 
       <section
         id="how-it-works"
@@ -985,6 +1269,10 @@ function Home() {
 
       </section>
 
+      {/* ==============================
+          CTA
+      ============================== */}
+
       <section className="cta-section py-5">
 
         <div className="container text-center">
@@ -1009,6 +1297,10 @@ function Home() {
         </div>
 
       </section>
+
+      {/* ==============================
+          FOOTER
+      ============================== */}
 
       <footer className="bg-dark text-white py-4">
 
@@ -1053,6 +1345,7 @@ function Home() {
   );
 }
 
+// Practice Area Component
 function PracticeArea({
   icon,
   title,
@@ -1085,6 +1378,7 @@ function PracticeArea({
   );
 }
 
+// How It Works Component
 function Step({
   number,
   title,
@@ -1114,4 +1408,3 @@ function Step({
 }
 
 export default Home;
-

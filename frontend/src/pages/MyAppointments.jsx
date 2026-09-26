@@ -5,44 +5,232 @@ function MyAppointments() {
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [selectedAppointment, setSelectedAppointment] = useState(null);
-  const [rescheduleAppointment, setRescheduleAppointment] = useState(null);
+  const [rescheduleAppointment, setRescheduleAppointment] =
+    useState(null);
   const [newDate, setNewDate] = useState("");
   const [newTime, setNewTime] = useState("");
 
-  const availability = JSON.parse(
-    localStorage.getItem("advocaOneAvailability") || "{}",
-  );
+  // Get logged-in client
+  const getLoggedInUser = () => {
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem("advocaOneLoggedInUser") || "null"
+        ) || null
+      );
+    } catch {
+      return null;
+    }
+  };
 
+  const loggedInUser = getLoggedInUser();
+
+  const loggedInEmail =
+    loggedInUser?.email?.trim().toLowerCase() || "";
+
+  // Get registered lawyers
+  const getRegisteredLawyers = () => {
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem("advocaOneAdminLawyers") || "[]"
+        ) || []
+      );
+    } catch {
+      return [];
+    }
+  };
+
+  // Find lawyer email using appointment details
+  const getLawyerEmail = (appointment) => {
+    if (appointment?.lawyerEmail) {
+      return appointment.lawyerEmail.trim().toLowerCase();
+    }
+
+    const lawyers = getRegisteredLawyers();
+
+    const lawyer = lawyers.find((item) => {
+      const sameId =
+        String(item.id || "").trim() ===
+        String(appointment?.lawyerId || "").trim();
+
+      const sameName =
+        item.name?.trim().toLowerCase() ===
+        appointment?.lawyerName?.trim().toLowerCase();
+
+      return sameId || sameName;
+    });
+
+    return lawyer?.email?.trim().toLowerCase() || "";
+  };
+
+  // Get availability for selected lawyer
+  const getLawyerAvailability = (appointment) => {
+    const lawyerEmail = getLawyerEmail(appointment);
+
+    // Registered lawyers use lawyer-specific availability
+    if (lawyerEmail) {
+      try {
+        const allAvailabilities =
+          JSON.parse(
+            localStorage.getItem("advocaOneAvailabilities") || "{}"
+          ) || {};
+
+        if (allAvailabilities[lawyerEmail]) {
+          return allAvailabilities[lawyerEmail];
+        }
+      } catch {
+        // Use fallback below
+      }
+    }
+
+    // Static/demo lawyers use old availability
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem("advocaOneAvailability") || "{}"
+        ) || {}
+      );
+    } catch {
+      return {};
+    }
+  };
+
+  // Selected reschedule day
   const selectedRescheduleDay = newDate
-    ? new Date(`${newDate}T00:00:00`).toLocaleDateString("en-US", {
-        weekday: "long",
-      })
+    ? new Date(`${newDate}T00:00:00`).toLocaleDateString(
+        "en-US",
+        {
+          weekday: "long",
+        }
+      )
     : "";
 
-const availableRescheduleSlots =
-  availability[selectedRescheduleDay] || [];
+  // Availability for selected lawyer
+  const availability = getLawyerAvailability(
+    rescheduleAppointment
+  );
+
+  const availableRescheduleSlots =
+    availability[selectedRescheduleDay] || [];
+
+  // Load only current client's appointments
+  const loadAppointments = () => {
+    try {
+      const bookings =
+        JSON.parse(
+          localStorage.getItem("advocaOneBookings") || "[]"
+        ) || [];
+
+      // Automatically mark old confirmed appointments as completed
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const updatedBookings = bookings.map((booking) => {
+        const bookingEmail =
+          booking.userEmail?.trim().toLowerCase() || "";
+
+        if (
+          bookingEmail === loggedInEmail &&
+          booking.status === "Confirmed" &&
+          booking.date
+        ) {
+          const appointmentDate = new Date(
+            `${booking.date}T00:00:00`
+          );
+
+          if (appointmentDate < today) {
+            return {
+              ...booking,
+              status: "Completed",
+            };
+          }
+        }
+
+        return booking;
+      });
+
+      // Save updated bookings
+      localStorage.setItem(
+        "advocaOneBookings",
+        JSON.stringify(updatedBookings)
+      );
+
+      // Show only current client's appointments
+      const clientBookings = updatedBookings.filter(
+        (booking) => {
+          const bookingEmail =
+            booking.userEmail?.trim().toLowerCase() || "";
+
+          return (
+            loggedInEmail &&
+            bookingEmail &&
+            bookingEmail === loggedInEmail
+          );
+        }
+      );
+
+      setAppointments(clientBookings);
+    } catch (error) {
+      console.error("Error loading appointments:", error);
+      setAppointments([]);
+    }
+  };
+
   // Cancel Appointment
   const handleCancel = (id) => {
     const confirmCancel = window.confirm(
-      "Are you sure you want to cancel this appointment?",
+      "Are you sure you want to cancel this appointment?"
     );
 
     if (!confirmCancel) {
       return;
     }
 
-    const updatedAppointments = appointments.map((appointment) =>
-      appointment.id === id
-        ? { ...appointment, status: "Cancelled" }
-        : appointment,
-    );
+    try {
+      const bookings =
+        JSON.parse(
+          localStorage.getItem("advocaOneBookings") || "[]"
+        ) || [];
 
-    localStorage.setItem(
-      "advocaOneBookings",
-      JSON.stringify(updatedAppointments),
-    );
+      const updatedBookings = bookings.map((booking) => {
+        const bookingEmail =
+          booking.userEmail?.trim().toLowerCase() || "";
 
-    setAppointments(updatedAppointments);
+        // Update only current client's appointment
+        if (
+          String(booking.id) === String(id) &&
+          bookingEmail === loggedInEmail
+        ) {
+          return {
+            ...booking,
+            status: "Cancelled",
+          };
+        }
+
+        return booking;
+      });
+
+      localStorage.setItem(
+        "advocaOneBookings",
+        JSON.stringify(updatedBookings)
+      );
+
+      // Refresh current client's appointments
+      setAppointments(
+        updatedBookings.filter((booking) => {
+          const bookingEmail =
+            booking.userEmail?.trim().toLowerCase() || "";
+
+          return bookingEmail === loggedInEmail;
+        })
+      );
+
+      alert("Appointment cancelled successfully.");
+    } catch (error) {
+      console.error("Error cancelling appointment:", error);
+      alert("Unable to cancel appointment.");
+    }
   };
 
   // Reschedule Appointment
@@ -51,6 +239,7 @@ const availableRescheduleSlots =
       return;
     }
 
+    // Same date and time
     if (
       newDate === rescheduleAppointment.date &&
       newTime === rescheduleAppointment.time
@@ -58,42 +247,64 @@ const availableRescheduleSlots =
       alert("Please select a different date or time.");
       return;
     }
+
+    // Cancelled appointment
     if (rescheduleAppointment.status === "Cancelled") {
       alert("Cancelled appointments cannot be rescheduled.");
       return;
     }
 
+    // Completed appointment
+    if (rescheduleAppointment.status === "Completed") {
+      alert("Completed appointments cannot be rescheduled.");
+      return;
+    }
+
+    // Required fields
     if (!newDate || !newTime) {
       alert("Please select a new date and time.");
       return;
     }
-    const availability = JSON.parse(
-      localStorage.getItem("advocaOneAvailability") || "{}",
+
+    // Selected day
+    const selectedDay = new Date(
+      `${newDate}T00:00:00`
+    ).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+
+    // Get lawyer availability
+    const lawyerAvailability = getLawyerAvailability(
+      rescheduleAppointment
     );
 
-    const selectedDay = new Date(`${newDate}T00:00:00`).toLocaleDateString(
-      "en-US",
-      { weekday: "long" },
-    );
+    const availableSlots =
+      lawyerAvailability[selectedDay] || [];
 
-    const availableSlots = availability[selectedDay] || [];
-
+    // Check available slot
     if (!availableSlots.includes(newTime)) {
       alert(
-        `⚠️ ${selectedDay} at ${newTime} is not available for this lawyer. Please select an available time slot.`,
+        `⚠️ ${selectedDay} at ${newTime} is not available for this lawyer. Please select an available time slot.`
       );
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Check today's time
+    const today = new Date()
+      .toISOString()
+      .split("T")[0];
 
     if (newDate === today) {
       const now = new Date();
 
-      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentMinutes =
+        now.getHours() * 60 + now.getMinutes();
 
       const [time, period] = newTime.split(" ");
-      let [hours, minutes] = time.split(":").map(Number);
+
+      let [hours, minutes] = time
+        .split(":")
+        .map(Number);
 
       if (period === "AM" && hours === 12) {
         hours = 0;
@@ -103,7 +314,8 @@ const availableRescheduleSlots =
         hours += 12;
       }
 
-      const selectedMinutes = hours * 60 + minutes;
+      const selectedMinutes =
+        hours * 60 + minutes;
 
       if (selectedMinutes <= currentMinutes) {
         alert("Please select a future time.");
@@ -111,172 +323,207 @@ const availableRescheduleSlots =
       }
     }
 
-    const existingBookings = JSON.parse(
-      localStorage.getItem("advocaOneBookings") || "[]",
-    );
-
-    const isSlotBooked = existingBookings.some(
-      (booking) =>
-        String(booking.lawyerId) === String(rescheduleAppointment.lawyerId) &&
-        booking.date === newDate &&
-        booking.time === newTime &&
-        booking.id !== rescheduleAppointment.id &&
-        booking.status !== "Cancelled" &&
-        booking.status !== "Rejected",
-    );
-
-    if (isSlotBooked) {
-      alert("⚠️ This time slot is already booked. Please select another time.");
-      return;
-    }
-    const updatedAppointments = appointments.map((appointment) =>
-      appointment.id === rescheduleAppointment.id
-        ? {
-            ...appointment,
-            date: newDate,
-            day: selectedDay,
-            time: newTime,
-            status: "Pending",
-          }
-        : appointment,
-    );
-
-    localStorage.setItem(
-      "advocaOneBookings",
-      JSON.stringify(updatedAppointments),
-    );
-
-    setAppointments(updatedAppointments);
-
-    setRescheduleAppointment(null);
-    setNewDate("");
-    setNewTime("");
-
-    alert(
-      "Appointment rescheduled successfully!\nYour new appointment is pending confirmation.",
-    );
-  };
-
-  // Load appointments
- // Load appointments
-useEffect(() => {
-  const bookings = localStorage.getItem("advocaOneBookings");
-
-  console.log("My Appointments - bookings:", bookings);
-
-  if (bookings) {
     try {
-      const parsedBookings = JSON.parse(bookings);
+      const existingBookings =
+        JSON.parse(
+          localStorage.getItem("advocaOneBookings") || "[]"
+        ) || [];
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Check double booking
+      const isSlotBooked = existingBookings.some(
+        (booking) =>
+          String(booking.lawyerId) ===
+            String(rescheduleAppointment.lawyerId) &&
+          booking.date === newDate &&
+          booking.time === newTime &&
+          String(booking.id) !==
+            String(rescheduleAppointment.id) &&
+          booking.status !== "Cancelled" &&
+          booking.status !== "Rejected"
+      );
 
-      const updatedBookings = parsedBookings.map((appointment) => {
-        if (
-          appointment.status === "Confirmed" &&
-          appointment.date
-        ) {
-          const appointmentDate = new Date(
-            `${appointment.date}T00:00:00`
-          );
+      if (isSlotBooked) {
+        alert(
+          "⚠️ This time slot is already booked. Please select another time."
+        );
+        return;
+      }
 
-          if (appointmentDate < today) {
+      // Update only current client's appointment
+      const updatedBookings = existingBookings.map(
+        (booking) => {
+          const bookingEmail =
+            booking.userEmail?.trim().toLowerCase() || "";
+
+          if (
+            String(booking.id) ===
+              String(rescheduleAppointment.id) &&
+            bookingEmail === loggedInEmail
+          ) {
             return {
-              ...appointment,
-              status: "Completed",
+              ...booking,
+              lawyerEmail:
+                booking.lawyerEmail ||
+                getLawyerEmail(rescheduleAppointment),
+              date: newDate,
+              day: selectedDay,
+              time: newTime,
+              status: "Pending",
             };
           }
-        }
 
-        return appointment;
-      });
+          return booking;
+        }
+      );
 
       localStorage.setItem(
         "advocaOneBookings",
         JSON.stringify(updatedBookings)
       );
 
-      setAppointments(updatedBookings);
+      // Update current client's appointments
+      const updatedClientAppointments =
+        updatedBookings.filter((booking) => {
+          const bookingEmail =
+            booking.userEmail?.trim().toLowerCase() || "";
 
-      console.log("Updated appointments:", updatedBookings);
+          return bookingEmail === loggedInEmail;
+        });
+
+      setAppointments(updatedClientAppointments);
+
+      // Close modal
+      setRescheduleAppointment(null);
+      setNewDate("");
+      setNewTime("");
+
+      alert(
+        "Appointment rescheduled successfully!\nYour new appointment is pending confirmation."
+      );
     } catch (error) {
-      console.error("Error parsing bookings:", error);
+      console.error("Error rescheduling appointment:", error);
+      alert("Unable to reschedule appointment.");
     }
-  }
-}, []);
+  };
 
-  // Counts
+  // Load appointments when page opens
+  useEffect(() => {
+    loadAppointments();
+  }, []);
+
+  // Total
   const totalCount = appointments.length;
 
-  // Upcoming and Past Appointments
+  // Today
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const upcomingAppointments = appointments.filter((appointment) => {
-    if (!appointment.date) return false;
+  // Upcoming
+  const upcomingAppointments = appointments.filter(
+    (appointment) => {
+      if (!appointment.date) {
+        return false;
+      }
 
-    const appointmentDate = new Date(`${appointment.date}T00:00:00`);
+      const appointmentDate = new Date(
+        `${appointment.date}T00:00:00`
+      );
 
-    return appointmentDate >= today && appointment.status !== "Cancelled";
-  });
+      return (
+        appointmentDate >= today &&
+        appointment.status !== "Cancelled"
+      );
+    }
+  );
 
-  const pastAppointments = appointments.filter((appointment) => {
-    if (!appointment.date) return false;
+  // Past
+  const pastAppointments = appointments.filter(
+    (appointment) => {
+      if (!appointment.date) {
+        return false;
+      }
 
-    const appointmentDate = new Date(`${appointment.date}T00:00:00`);
+      const appointmentDate = new Date(
+        `${appointment.date}T00:00:00`
+      );
 
-    return appointmentDate < today;
-  });
+      return appointmentDate < today;
+    }
+  );
 
+  // Status counts
   const pendingCount = appointments.filter(
-    (appointment) => appointment.status === "Pending",
+    (appointment) =>
+      appointment.status === "Pending"
   ).length;
 
   const confirmedCount = appointments.filter(
-    (appointment) => appointment.status === "Confirmed",
+    (appointment) =>
+      appointment.status === "Confirmed"
   ).length;
 
   const cancelledCount = appointments.filter(
-    (appointment) => appointment.status === "Cancelled",
+    (appointment) =>
+      appointment.status === "Cancelled"
   ).length;
 
   const completedCount = appointments.filter(
-    (appointment) => appointment.status === "Completed",
+    (appointment) =>
+      appointment.status === "Completed"
   ).length;
 
   // Filter + Search
-  const filteredAppointments = appointments.filter((appointment) => {
-    const matchesFilter =
-      filter === "All" ||
-      appointment.status === filter ||
-      (filter === "Upcoming" &&
-        upcomingAppointments.some((item) => item.id === appointment.id)) ||
-      (filter === "Past" &&
-        pastAppointments.some((item) => item.id === appointment.id));
+  const filteredAppointments = appointments.filter(
+    (appointment) => {
+      const matchesFilter =
+        filter === "All" ||
+        appointment.status === filter ||
+        (filter === "Upcoming" &&
+          upcomingAppointments.some(
+            (item) => item.id === appointment.id
+          )) ||
+        (filter === "Past" &&
+          pastAppointments.some(
+            (item) => item.id === appointment.id
+          ));
 
-    const searchText = search.toLowerCase();
+      const searchText = search.toLowerCase();
 
-    const matchesSearch =
-      appointment.lawyerName?.toLowerCase().includes(searchText) ||
-      appointment.specialization?.toLowerCase().includes(searchText) ||
-      appointment.location?.toLowerCase().includes(searchText) ||
-      appointment.reason?.toLowerCase().includes(searchText);
+      const matchesSearch =
+        appointment.lawyerName
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.specialization
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.location
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.reason
+          ?.toLowerCase()
+          .includes(searchText);
 
-    return matchesFilter && matchesSearch;
-  });
+      return matchesFilter && matchesSearch;
+    }
+  );
 
   return (
     <>
       <div className="container mt-5 pt-5">
+
         {/* Page Header */}
-        <h2 className="mb-2">My Appointments</h2>
+        <h2 className="mb-2">
+          My Appointments
+        </h2>
 
         <p className="text-muted mb-4">
-          View and manage your legal consultation appointments.
+          View and manage your legal consultation
+          appointments.
         </p>
 
         {/* Appointment Counts */}
         <div className="row mb-4">
+
           <div className="col-md-3 mb-2">
             <div className="card shadow-sm">
               <div className="card-body text-center">
@@ -339,6 +586,7 @@ useEffect(() => {
               </div>
             </div>
           </div>
+
         </div>
 
         {/* Search */}
@@ -348,7 +596,9 @@ useEffect(() => {
             className="form-control"
             placeholder="🔍 Search by lawyer, specialization, location or reason..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
           />
         </div>
 
@@ -366,7 +616,9 @@ useEffect(() => {
             <button
               key={status}
               className={`btn ${
-                filter === status ? "btn-primary" : "btn-outline-primary"
+                filter === status
+                  ? "btn-primary"
+                  : "btn-outline-primary"
               } me-2 mb-2`}
               onClick={() => setFilter(status)}
             >
@@ -378,127 +630,197 @@ useEffect(() => {
         {/* Appointments */}
         {appointments.length === 0 ? (
           <div className="text-center py-5">
-            <div style={{ fontSize: "50px" }}>📅</div>
 
-            <h4 className="mt-3">No Appointments Found</h4>
+            <div style={{ fontSize: "50px" }}>
+              📅
+            </div>
 
-            <p className="text-muted">You don't have any appointments yet.</p>
+            <h4 className="mt-3">
+              No Appointments Found
+            </h4>
+
+            <p className="text-muted">
+              You don't have any appointments yet.
+            </p>
+
           </div>
         ) : filteredAppointments.length === 0 ? (
           <div className="text-center py-5">
-            <div style={{ fontSize: "50px" }}>🔍</div>
 
-            <h4 className="mt-3">No Matching Appointments</h4>
+            <div style={{ fontSize: "50px" }}>
+              🔍
+            </div>
 
-            <p className="text-muted">Try changing your search or filter.</p>
+            <h4 className="mt-3">
+              No Matching Appointments
+            </h4>
+
+            <p className="text-muted">
+              Try changing your search or filter.
+            </p>
+
           </div>
         ) : (
           <div className="row">
-            {filteredAppointments.map((appointment) => (
-              <div className="col-md-6 col-lg-4 mb-4" key={appointment.id}>
-                <div className="card shadow-sm h-100">
-                  <div className="card-body">
-                    {/* Lawyer Name */}
-                    <h5 className="card-title">{appointment.lawyerName}</h5>
 
-                    {/* Status Badge */}
-                    <span
-                      className={`badge ${
-  appointment.status === "Confirmed"
-    ? "bg-success"
-    : appointment.status === "Completed"
-      ? "bg-primary"
-      : appointment.status === "Cancelled"
-        ? "bg-danger"
-        : "bg-warning text-dark"
-}`}
-                    >
-                      {appointment.status || "Pending"}
-                    </span>
+            {filteredAppointments.map(
+              (appointment) => (
+                <div
+                  className="col-md-6 col-lg-4 mb-4"
+                  key={appointment.id}
+                >
 
-                    {/* Appointment ID */}
-                    <small className="text-muted d-block mb-3">
-                      Appointment ID: {appointment.id}
-                    </small>
+                  <div className="card shadow-sm h-100">
 
-                    {/* Specialization */}
-                    <p className="mb-2">
-                      <strong>Specialization:</strong>{" "}
-                      {appointment.specialization || "Not specified"}
-                    </p>
+                    <div className="card-body">
 
-                    {/* Location */}
-                    <p className="mb-2">
-                      <strong>Location:</strong>{" "}
-                      {appointment.location || "Not specified"}
-                    </p>
+                      {/* Lawyer */}
+                      <h5 className="card-title">
+                        {appointment.lawyerName}
+                      </h5>
 
-                    {/* Date */}
-                    <p className="mb-2">
-                      <strong>Date:</strong>{" "}
-                      {appointment.date || "Not specified"}
-                    </p>
-
-                    {/* Time */}
-                    <p className="mb-2">
-                      <strong>Time:</strong>{" "}
-                      {appointment.time || "Not specified"}
-                    </p>
-
-                    {/* Reason */}
-                    <p className="mb-2">
-                      <strong>Reason:</strong>{" "}
-                      {appointment.reason || "Not specified"}
-                    </p>
-
-                    {/* Fee */}
-                    <p className="mb-3">
-                      <strong>Fee:</strong> ₹{appointment.fee || 0}
-                    </p>
-
-                    {/* Cancel Button */}
-                    {appointment.status !== "Cancelled" && 
-                    appointment.status !== "Completed" && (
-                      <button
-                        className="btn btn-danger btn-sm me-2"
-                        onClick={() => handleCancel(appointment.id)}
+                      {/* Status */}
+                      <span
+                        className={`badge ${
+                          appointment.status ===
+                          "Confirmed"
+                            ? "bg-success"
+                            : appointment.status ===
+                              "Completed"
+                            ? "bg-primary"
+                            : appointment.status ===
+                              "Cancelled"
+                            ? "bg-danger"
+                            : appointment.status ===
+                              "Rejected"
+                            ? "bg-secondary"
+                            : "bg-warning text-dark"
+                        }`}
                       >
-                        Cancel Appointment
+                        {appointment.status ||
+                          "Pending"}
+                      </span>
+
+                      {/* Appointment ID */}
+                      <small className="text-muted d-block mb-3">
+                        Appointment ID:{" "}
+                        {appointment.id}
+                      </small>
+
+                      {/* Specialization */}
+                      <p className="mb-2">
+                        <strong>
+                          Specialization:
+                        </strong>{" "}
+                        {appointment.specialization ||
+                          "Not specified"}
+                      </p>
+
+                      {/* Location */}
+                      <p className="mb-2">
+                        <strong>
+                          Location:
+                        </strong>{" "}
+                        {appointment.location ||
+                          "Not specified"}
+                      </p>
+
+                      {/* Date */}
+                      <p className="mb-2">
+                        <strong>Date:</strong>{" "}
+                        {appointment.date ||
+                          "Not specified"}
+                      </p>
+
+                      {/* Time */}
+                      <p className="mb-2">
+                        <strong>Time:</strong>{" "}
+                        {appointment.time ||
+                          "Not specified"}
+                      </p>
+
+                      {/* Reason */}
+                      <p className="mb-2">
+                        <strong>Reason:</strong>{" "}
+                        {appointment.reason ||
+                          "Not specified"}
+                      </p>
+
+                      {/* Fee */}
+                      <p className="mb-3">
+                        <strong>Fee:</strong> ₹
+                        {appointment.fee || 0}
+                      </p>
+
+                      {/* Cancel */}
+                      {appointment.status !==
+                        "Cancelled" &&
+                        appointment.status !==
+                          "Completed" && (
+                          <button
+                            className="btn btn-danger btn-sm me-2"
+                            onClick={() =>
+                              handleCancel(
+                                appointment.id
+                              )
+                            }
+                          >
+                            Cancel Appointment
+                          </button>
+                        )}
+
+                      {/* View Details */}
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() =>
+                          setSelectedAppointment(
+                            appointment
+                          )
+                        }
+                      >
+                        View Details
                       </button>
-                    )}
 
-                    {/* View Details Button */}
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={() => setSelectedAppointment(appointment)}
-                    >
-                      View Details
-                    </button>
+                      {/* Reschedule */}
+                      {appointment.status !==
+                        "Cancelled" &&
+                        appointment.status !==
+                          "Completed" &&
+                        !pastAppointments.some(
+                          (item) =>
+                            item.id ===
+                            appointment.id
+                        ) && (
+                          <button
+                            className="btn btn-warning btn-sm ms-2"
+                            onClick={() => {
+                              setRescheduleAppointment(
+                                appointment
+                              );
 
-                    {/* Reschedule Button */}
-                    {appointment.status !== "Cancelled" &&
-                    appointment.status !== "Completed" &&
-                      !pastAppointments.some(
-                        (item) => item.id === appointment.id,
-                      ) && (
+                              setNewDate(
+                                appointment.date || ""
+                              );
 
-                        <button
-                          className="btn btn-warning btn-sm ms-2"
-                          onClick={() => {
-                            setRescheduleAppointment(appointment);
-                            setNewDate(appointment.date || "");
-                            setNewTime(appointment.time || "");
-                          }}
-                        >
-                          Reschedule
-                        </button>
-                      )}
+                              setNewTime(
+                                appointment.time || ""
+                              );
+                            }}
+                          >
+                            Reschedule
+                          </button>
+                        )}
+
+                    </div>
                   </div>
+
                 </div>
-              </div>
-            ))}
+              )
+            )}
+
           </div>
         )}
+
       </div>
 
       {/* Appointment Details Modal */}
@@ -507,90 +829,122 @@ useEffect(() => {
           className="modal fade show"
           style={{
             display: "block",
-            backgroundColor: "rgba(0,0,0,0.5)",
+            backgroundColor:
+              "rgba(0,0,0,0.5)",
           }}
           tabIndex="-1"
         >
+
           <div className="modal-dialog modal-dialog-centered">
+
             <div className="modal-content">
-              {/* Modal Header */}
+
               <div className="modal-header">
-                <h5 className="modal-title">Appointment Details</h5>
+
+                <h5 className="modal-title">
+                  Appointment Details
+                </h5>
 
                 <button
                   type="button"
                   className="btn-close"
-                  onClick={() => setSelectedAppointment(null)}
+                  onClick={() =>
+                    setSelectedAppointment(null)
+                  }
                 ></button>
+
               </div>
 
-              {/* Modal Body */}
               <div className="modal-body">
+
                 <p>
-                  <strong>Lawyer:</strong> {selectedAppointment.lawyerName}
+                  <strong>Lawyer:</strong>{" "}
+                  {selectedAppointment.lawyerName}
                 </p>
 
                 <p>
-                  <strong>Specialization:</strong>{" "}
-                  {selectedAppointment.specialization || "Not specified"}
+                  <strong>
+                    Specialization:
+                  </strong>{" "}
+                  {selectedAppointment.specialization ||
+                    "Not specified"}
                 </p>
 
                 <p>
                   <strong>Location:</strong>{" "}
-                  {selectedAppointment.location || "Not specified"}
+                  {selectedAppointment.location ||
+                    "Not specified"}
                 </p>
 
                 <p>
                   <strong>Date:</strong>{" "}
-                  {selectedAppointment.date || "Not specified"}
+                  {selectedAppointment.date ||
+                    "Not specified"}
                 </p>
 
                 <p>
                   <strong>Time:</strong>{" "}
-                  {selectedAppointment.time || "Not specified"}
+                  {selectedAppointment.time ||
+                    "Not specified"}
                 </p>
 
                 <p>
                   <strong>Reason:</strong>{" "}
-                  {selectedAppointment.reason || "Not specified"}
+                  {selectedAppointment.reason ||
+                    "Not specified"}
                 </p>
 
                 <p>
-                  <strong>Consultation Fee:</strong> ₹
-                  {selectedAppointment.fee || 0}
+                  <strong>
+                    Consultation Fee:
+                  </strong>{" "}
+                  ₹{selectedAppointment.fee || 0}
                 </p>
 
-              <p>
-  <strong>Status:</strong>{" "}
-  <span
-    className={`badge ${
-      selectedAppointment.status === "Confirmed"
-        ? "bg-success"
-        : selectedAppointment.status === "Completed"
-          ? "bg-primary"
-          : selectedAppointment.status === "Cancelled"
-            ? "bg-danger"
-            : "bg-warning text-dark"
-    }`}
-  >
-    {selectedAppointment.status || "Pending"}
-  </span>
-</p>
+                <p>
+                  <strong>Status:</strong>{" "}
+                  <span
+                    className={`badge ${
+                      selectedAppointment.status ===
+                      "Confirmed"
+                        ? "bg-success"
+                        : selectedAppointment.status ===
+                          "Completed"
+                        ? "bg-primary"
+                        : selectedAppointment.status ===
+                          "Cancelled"
+                        ? "bg-danger"
+                        : selectedAppointment.status ===
+                          "Rejected"
+                        ? "bg-secondary"
+                        : "bg-warning text-dark"
+                    }`}
+                  >
+                    {selectedAppointment.status ||
+                      "Pending"}
+                  </span>
+                </p>
 
               </div>
 
-              {/* Modal Footer */}
               <div className="modal-footer">
+
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setSelectedAppointment(null)}
+                  onClick={() =>
+                    setSelectedAppointment(null)
+                  }
                 >
                   Close
                 </button>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
       )}
 
@@ -600,15 +954,21 @@ useEffect(() => {
           className="modal fade show"
           style={{
             display: "block",
-            backgroundColor: "rgba(0,0,0,0.5)",
+            backgroundColor:
+              "rgba(0,0,0,0.5)",
           }}
           tabIndex="-1"
         >
+
           <div className="modal-dialog modal-dialog-centered">
+
             <div className="modal-content">
-              {/* Modal Header */}
+
               <div className="modal-header">
-                <h5 className="modal-title">Reschedule Appointment</h5>
+
+                <h5 className="modal-title">
+                  Reschedule Appointment
+                </h5>
 
                 <button
                   type="button"
@@ -619,56 +979,104 @@ useEffect(() => {
                     setNewTime("");
                   }}
                 ></button>
+
               </div>
 
-              {/* Modal Body */}
               <div className="modal-body">
+
                 <p>
-                  <strong>Lawyer:</strong> {rescheduleAppointment.lawyerName}
+                  <strong>Lawyer:</strong>{" "}
+                  {rescheduleAppointment.lawyerName}
                 </p>
 
                 <div className="mb-3">
-                  <label className="form-label">New Date</label>
+
+                  <label className="form-label">
+                    New Date
+                  </label>
 
                   <input
                     type="date"
                     className="form-control"
-                    min={new Date().toISOString().split("T")[0]}
+                    min={
+                      new Date()
+                        .toISOString()
+                        .split("T")[0]
+                    }
                     value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
+                    onChange={(e) => {
+                      setNewDate(e.target.value);
+                      setNewTime("");
+                    }}
                   />
+
                 </div>
+
                 {newDate && (
                   <div className="alert alert-info">
-                    🗓️ <strong>Selected Day:</strong>{" "}
-                    {new Date(`${newDate}T00:00:00`).toLocaleDateString(
+
+                    🗓️{" "}
+                    <strong>
+                      Selected Day:
+                    </strong>{" "}
+                    {new Date(
+                      `${newDate}T00:00:00`
+                    ).toLocaleDateString(
                       "en-US",
-                      { weekday: "long" },
+                      {
+                        weekday: "long",
+                      }
                     )}
+
                   </div>
                 )}
 
                 <div className="mb-3">
-                  <label className="form-label">New Time</label>
+
+                  <label className="form-label">
+                    New Time
+                  </label>
 
                   <select
                     className="form-select"
                     value={newTime}
-                    onChange={(e) => setNewTime(e.target.value)}
+                    onChange={(e) =>
+                      setNewTime(e.target.value)
+                    }
+                    disabled={!newDate}
                   >
-                    <option value="">Select Available Time</option>
 
-                    {availableRescheduleSlots.map((slot, index) => (
-                      <option key={`${slot}-${index}`} value={slot}>
-                        {slot}
-                      </option>
-                    ))}
+                    <option value="">
+                      Select Available Time
+                    </option>
+
+                    {availableRescheduleSlots.map(
+                      (slot, index) => (
+                        <option
+                          key={`${slot}-${index}`}
+                          value={slot}
+                        >
+                          {slot}
+                        </option>
+                      )
+                    )}
+
                   </select>
+
+                  {newDate &&
+                    availableRescheduleSlots.length ===
+                      0 && (
+                      <small className="text-danger">
+                        No available slots for this day.
+                      </small>
+                    )}
+
                 </div>
+
               </div>
 
-              {/* Modal Footer */}
               <div className="modal-footer">
+
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -688,9 +1096,13 @@ useEffect(() => {
                 >
                   Save Changes
                 </button>
+
               </div>
+
             </div>
+
           </div>
+
         </div>
       )}
     </>

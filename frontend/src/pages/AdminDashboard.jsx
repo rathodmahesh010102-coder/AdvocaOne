@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import "../App.css";
 
 function AdminDashboard() {
-  const [activeSection, setActiveSection] = useState("lawyers");
+  const [activeSection, setActiveSection] =
+    useState("lawyers");
 
+  const [selectedLawyer, setSelectedLawyer] =
+    useState(null);
+
+  // Default lawyers for demo
   const defaultLawyers = [
     {
       id: 1,
@@ -53,156 +58,412 @@ function AdminDashboard() {
     },
   ];
 
-  const savedLawyers = JSON.parse(
-    localStorage.getItem("advocaOneAdminLawyers")
-  );
+  const [lawyers, setLawyers] =
+    useState([]);
 
-  const [lawyers, setLawyers] = useState(
-    savedLawyers && savedLawyers.length > 0
-      ? savedLawyers
-      : defaultLawyers
-  );
+  const [users, setUsers] =
+    useState([]);
 
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Mahesh Rathod",
-      email: "mahesh@example.com",
-      role: "Client",
-      status: "Active",
-    },
-    {
-      id: 2,
-      name: "Rahul Sharma",
-      email: "rahul@example.com",
-      role: "Lawyer",
-      status: "Active",
-    },
-    {
-      id: 3,
-      name: "Priya Patil",
-      email: "priya@example.com",
-      role: "Lawyer",
-      status: "Active",
-    },
-    {
-      id: 4,
-      name: "Amit Kumar",
-      email: "amit@example.com",
-      role: "Client",
-      status: "Inactive",
-    },
-    {
-      id: 5,
-      name: "Sneha Joshi",
-      email: "sneha@example.com",
-      role: "Client",
-      status: "Active",
-    },
-  ]);
+  const [appointments, setAppointments] =
+    useState([]);
 
-  const [appointments, setAppointments] = useState([
-    {
-      id: 1,
-      client: "Mahesh Rathod",
-      lawyer: "Adv. Rahul Sharma",
-      date: "25 September 2026",
-      time: "10:00 AM",
-      type: "Online",
-      status: "Confirmed",
-    },
-    {
-      id: 2,
-      client: "Sneha Joshi",
-      lawyer: "Adv. Priya Patil",
-      date: "25 September 2026",
-      time: "2:00 PM",
-      type: "In-Person",
-      status: "Pending",
-    },
-    {
-      id: 3,
-      client: "Amit Kumar",
-      lawyer: "Adv. Amit Deshmukh",
-      date: "26 September 2026",
-      time: "11:00 AM",
-      type: "Online",
-      status: "Completed",
-    },
-    {
-      id: 4,
-      client: "Rahul Patil",
-      lawyer: "Adv. Vikram Singh",
-      date: "27 September 2026",
-      time: "4:00 PM",
-      type: "Online",
-      status: "Cancelled",
-    },
-  ]);
+  // ==============================
+  // LOAD LAWYERS
+  // ==============================
 
-  const [selectedLawyer, setSelectedLawyer] = useState(null);
+  const loadLawyers = () => {
+    try {
+      const savedLawyers =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAdminLawyers"
+          ) || "[]"
+        ) || [];
 
-  const updateLawyerStatus = (id, status) => {
-    const updatedLawyers = lawyers.map((lawyer) =>
-      lawyer.id === id
-        ? { ...lawyer, status }
-        : lawyer
+      if (
+        Array.isArray(savedLawyers) &&
+        savedLawyers.length > 0
+      ) {
+        setLawyers(savedLawyers);
+      } else {
+        setLawyers(defaultLawyers);
+
+        localStorage.setItem(
+          "advocaOneAdminLawyers",
+          JSON.stringify(defaultLawyers)
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Error loading lawyers:",
+        error
+      );
+
+      setLawyers(defaultLawyers);
+    }
+  };
+
+  // ==============================
+  // LOAD USERS
+  // ==============================
+
+  const loadUsers = () => {
+    try {
+      const savedAccounts =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAccounts"
+          ) || "[]"
+        ) || [];
+
+      if (Array.isArray(savedAccounts)) {
+        const formattedUsers =
+          savedAccounts.map(
+            (account, index) => ({
+              id:
+                account.id ||
+                index + 1,
+
+              name:
+                account.name ||
+                "User",
+
+              email:
+                account.email ||
+                "",
+
+              role:
+                account.role ||
+                "Client",
+
+              status:
+                account.status ||
+                "Active",
+            })
+          );
+
+        setUsers(
+          formattedUsers
+        );
+      } else {
+        setUsers([]);
+      }
+    } catch (error) {
+      console.error(
+        "Error loading users:",
+        error
+      );
+
+      setUsers([]);
+    }
+  };
+
+  // ==============================
+  // LOAD APPOINTMENTS
+  // ==============================
+
+  const loadAppointments = () => {
+    try {
+      const savedBookings =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneBookings"
+          ) || "[]"
+        ) || [];
+
+      if (!Array.isArray(savedBookings)) {
+        setAppointments([]);
+        return;
+      }
+
+      const formattedAppointments =
+        savedBookings.map(
+          (booking, index) => ({
+            ...booking,
+
+            id:
+              booking.id ||
+              index + 1,
+
+            client:
+              booking.client ||
+              booking.userName ||
+              booking.name ||
+              "Client",
+
+            lawyer:
+              booking.lawyerName ||
+              booking.lawyer ||
+              "Lawyer",
+
+            date:
+              booking.date ||
+              booking.bookingDate ||
+              "",
+
+            time:
+              booking.time ||
+              booking.bookingTime ||
+              "",
+
+            type:
+              booking.type ||
+              booking.consultationType ||
+              booking.mode ||
+              "Online",
+
+            status:
+              booking.status ||
+              "Pending",
+          })
+        );
+
+      setAppointments(
+        formattedAppointments
+      );
+    } catch (error) {
+      console.error(
+        "Error loading appointments:",
+        error
+      );
+
+      setAppointments([]);
+    }
+  };
+
+  // ==============================
+  // LOAD ALL DATA
+  // ==============================
+
+  const loadAllData = () => {
+    loadLawyers();
+    loadUsers();
+    loadAppointments();
+  };
+
+  useEffect(() => {
+    loadAllData();
+
+    window.addEventListener(
+      "storage",
+      loadAllData
     );
 
-    setLawyers(updatedLawyers);
+    window.addEventListener(
+      "focus",
+      loadAllData
+    );
+
+    return () => {
+      window.removeEventListener(
+        "storage",
+        loadAllData
+      );
+
+      window.removeEventListener(
+        "focus",
+        loadAllData
+      );
+    };
+  }, []);
+
+  // ==============================
+  // UPDATE LAWYER STATUS
+  // ==============================
+
+  const updateLawyerStatus = (
+    id,
+    status
+  ) => {
+    const updatedLawyers =
+      lawyers.map(
+        (lawyer) =>
+          String(lawyer.id) ===
+          String(id)
+            ? {
+                ...lawyer,
+                status,
+              }
+            : lawyer
+      );
+
+    setLawyers(
+      updatedLawyers
+    );
 
     localStorage.setItem(
       "advocaOneAdminLawyers",
-      JSON.stringify(updatedLawyers)
+      JSON.stringify(
+        updatedLawyers
+      )
     );
+
+    // Update selected lawyer if open
+    if (
+      selectedLawyer &&
+      String(selectedLawyer.id) ===
+        String(id)
+    ) {
+      setSelectedLawyer({
+        ...selectedLawyer,
+        status,
+      });
+    }
   };
 
-  const updateUserStatus = (id) => {
-    const updatedUsers = users.map((user) =>
-      user.id === id
-        ? {
-            ...user,
-            status:
-              user.status === "Active"
-                ? "Inactive"
-                : "Active",
+  // ==============================
+  // UPDATE USER STATUS
+  // ==============================
+
+  const updateUserStatus = (
+    id
+  ) => {
+    const updatedUsers =
+      users.map(
+        (user) =>
+          String(user.id) ===
+          String(id)
+            ? {
+                ...user,
+                status:
+                  user.status ===
+                  "Active"
+                    ? "Inactive"
+                    : "Active",
+              }
+            : user
+      );
+
+    setUsers(
+      updatedUsers
+    );
+
+    // Update account status
+    try {
+      const accounts =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAccounts"
+          ) || "[]"
+        ) || [];
+
+      const updatedAccounts =
+        accounts.map(
+          (account) => {
+            const matchingUser =
+              updatedUsers.find(
+                (user) =>
+                  user.email?.toLowerCase() ===
+                  account.email?.toLowerCase()
+              );
+
+            return matchingUser
+              ? {
+                  ...account,
+                  status:
+                    matchingUser.status,
+                }
+              : account;
           }
-        : user
-    );
+        );
 
-    setUsers(updatedUsers);
+      localStorage.setItem(
+        "advocaOneAccounts",
+        JSON.stringify(
+          updatedAccounts
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Error updating account:",
+        error
+      );
+    }
   };
 
-  const updateAppointmentStatus = (id, status) => {
-    const updatedAppointments = appointments.map(
-      (appointment) =>
-        appointment.id === id
-          ? {
-              ...appointment,
-              status,
-            }
-          : appointment
-    );
+  // ==============================
+  // UPDATE APPOINTMENT STATUS
+  // ==============================
 
-    setAppointments(updatedAppointments);
+  const updateAppointmentStatus = (
+    id,
+    status
+  ) => {
+    try {
+      const savedBookings =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneBookings"
+          ) || "[]"
+        ) || [];
+
+      if (!Array.isArray(savedBookings)) {
+        return;
+      }
+
+      const updatedBookings =
+        savedBookings.map(
+          (booking) =>
+            String(booking.id) ===
+            String(id)
+              ? {
+                  ...booking,
+                  status,
+                }
+              : booking
+        );
+
+      localStorage.setItem(
+        "advocaOneBookings",
+        JSON.stringify(
+          updatedBookings
+        )
+      );
+
+      // Reload from storage
+      loadAppointments();
+    } catch (error) {
+      console.error(
+        "Error updating appointment:",
+        error
+      );
+    }
   };
 
-  const approvedLawyers = lawyers.filter(
-    (lawyer) => lawyer.status === "Approved"
-  ).length;
+  // ==============================
+  // STATISTICS
+  // ==============================
 
-  const pendingLawyers = lawyers.filter(
-    (lawyer) => lawyer.status === "Pending"
-  ).length;
+  const approvedLawyers =
+    lawyers.filter(
+      (lawyer) =>
+        lawyer.status ===
+        "Approved"
+    ).length;
 
-  const activeUsers = users.filter(
-    (user) => user.status === "Active"
-  ).length;
+  const pendingLawyers =
+    lawyers.filter(
+      (lawyer) =>
+        lawyer.status ===
+        "Pending"
+    ).length;
+
+  const activeUsers =
+    users.filter(
+      (user) =>
+        user.status ===
+        "Active"
+    ).length;
 
   return (
     <div className="admin-dashboard-page">
 
+      {/* ==============================
+          NAVBAR
+      ============================== */}
+
       <nav className="navbar navbar-dark bg-dark">
+
         <div className="container">
 
           <Link
@@ -220,23 +481,36 @@ function AdminDashboard() {
           </Link>
 
         </div>
+
       </nav>
 
       <div className="container py-5">
 
+        {/* ==============================
+            HEADER
+        ============================== */}
+
         <div className="mb-4">
+
           <h1 className="fw-bold">
             Admin Dashboard
           </h1>
 
           <p className="text-muted">
-            Manage lawyers, users and appointments.
+            Manage lawyers, users and
+            appointments.
           </p>
+
         </div>
+
+        {/* ==============================
+            STATISTICS
+        ============================== */}
 
         <div className="row g-4 mb-5">
 
           <div className="col-md-3">
+
             <div className="card shadow-sm p-4 admin-stat-card">
 
               <h6 className="text-muted">
@@ -252,9 +526,11 @@ function AdminDashboard() {
               </span>
 
             </div>
+
           </div>
 
           <div className="col-md-3">
+
             <div className="card shadow-sm p-4 admin-stat-card">
 
               <h6 className="text-muted">
@@ -270,9 +546,11 @@ function AdminDashboard() {
               </span>
 
             </div>
+
           </div>
 
           <div className="col-md-3">
+
             <div className="card shadow-sm p-4 admin-stat-card">
 
               <h6 className="text-muted">
@@ -288,9 +566,11 @@ function AdminDashboard() {
               </span>
 
             </div>
+
           </div>
 
           <div className="col-md-3">
+
             <div className="card shadow-sm p-4 admin-stat-card">
 
               <h6 className="text-muted">
@@ -306,76 +586,107 @@ function AdminDashboard() {
               </span>
 
             </div>
+
           </div>
 
         </div>
 
+        {/* ==============================
+            SECTION TABS
+        ============================== */}
+
         <div className="card shadow-sm mb-4">
+
           <div className="card-body">
 
             <div className="row g-2">
 
               <div className="col-md-4">
+
                 <button
                   className={
-                    activeSection === "lawyers"
+                    activeSection ===
+                    "lawyers"
                       ? "btn btn-primary w-100"
                       : "btn btn-outline-primary w-100"
                   }
                   onClick={() =>
-                    setActiveSection("lawyers")
+                    setActiveSection(
+                      "lawyers"
+                    )
                   }
                 >
                   👨‍⚖️ Lawyer Verification
                 </button>
+
               </div>
 
               <div className="col-md-4">
+
                 <button
                   className={
-                    activeSection === "users"
+                    activeSection ===
+                    "users"
                       ? "btn btn-primary w-100"
                       : "btn btn-outline-primary w-100"
                   }
                   onClick={() =>
-                    setActiveSection("users")
+                    setActiveSection(
+                      "users"
+                    )
                   }
                 >
                   👥 User Management
                 </button>
+
               </div>
 
               <div className="col-md-4">
+
                 <button
                   className={
-                    activeSection === "appointments"
+                    activeSection ===
+                    "appointments"
                       ? "btn btn-primary w-100"
                       : "btn btn-outline-primary w-100"
                   }
                   onClick={() =>
-                    setActiveSection("appointments")
+                    setActiveSection(
+                      "appointments"
+                    )
                   }
                 >
                   📅 Appointments
                 </button>
+
               </div>
 
             </div>
 
           </div>
+
         </div>
 
-        {activeSection === "lawyers" && (
+        {/* ==============================
+            LAWYERS
+        ============================== */}
+
+        {activeSection ===
+          "lawyers" && (
+
           <div className="card shadow-sm p-4">
 
             <div className="mb-4">
+
               <h3 className="fw-bold">
                 👨‍⚖️ Lawyer Verification
               </h3>
 
               <p className="text-muted">
-                Review and manage registered lawyers.
+                Review and manage registered
+                lawyers.
               </p>
+
             </div>
 
             <div className="table-responsive">
@@ -383,105 +694,185 @@ function AdminDashboard() {
               <table className="table align-middle">
 
                 <thead>
+
                   <tr>
-                    <th>Lawyer</th>
-                    <th>Practice Area</th>
-                    <th>City</th>
-                    <th>Experience</th>
-                    <th>Fee</th>
-                    <th>Status</th>
-                    <th>Action</th>
+
+                    <th>
+                      Lawyer
+                    </th>
+
+                    <th>
+                      Practice Area
+                    </th>
+
+                    <th>
+                      City
+                    </th>
+
+                    <th>
+                      Experience
+                    </th>
+
+                    <th>
+                      Fee
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      Action
+                    </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  {lawyers.map((lawyer) => (
-                    <tr key={lawyer.id}>
+                  {lawyers.length >
+                  0 ? (
 
-                      <td>
-                        <strong>
-                          {lawyer.name}
-                        </strong>
-                      </td>
+                    lawyers.map(
+                      (lawyer) => (
 
-                      <td>
-                        {lawyer.specialization}
-                      </td>
-
-                      <td>
-                        {lawyer.city}
-                      </td>
-
-                      <td>
-                        {lawyer.experience} Years
-                      </td>
-
-                      <td>
-                        ₹{lawyer.fee}
-                      </td>
-
-                      <td>
-                        <span
-                          className={
-                            lawyer.status === "Approved"
-                              ? "badge bg-success"
-                              : lawyer.status === "Rejected"
-                              ? "badge bg-danger"
-                              : "badge bg-warning text-dark"
+                        <tr
+                          key={
+                            lawyer.id
                           }
                         >
-                          {lawyer.status}
-                        </span>
-                      </td>
 
-                      <td>
+                          <td>
+                            <strong>
+                              {
+                                lawyer.name
+                              }
+                            </strong>
+                          </td>
 
-                        <div className="d-flex gap-2 flex-wrap">
-
-                          <button
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() =>
-                              setSelectedLawyer(lawyer)
+                          <td>
+                            {
+                              lawyer.specialization ||
+                              "Not Selected"
                             }
-                          >
-                            👁️ View
-                          </button>
+                          </td>
 
-                          {lawyer.status !== "Approved" && (
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() =>
-                                updateLawyerStatus(
-                                  lawyer.id,
-                                  "Approved"
-                                )
+                          <td>
+                            {
+                              lawyer.city ||
+                              "Not Selected"
+                            }
+                          </td>
+
+                          <td>
+                            {
+                              lawyer.experience ||
+                              0
+                            }{" "}
+                            Years
+                          </td>
+
+                          <td>
+                            ₹
+                            {
+                              lawyer.fee ||
+                              0
+                            }
+                          </td>
+
+                          <td>
+
+                            <span
+                              className={
+                                lawyer.status ===
+                                "Approved"
+                                  ? "badge bg-success"
+                                  : lawyer.status ===
+                                    "Rejected"
+                                  ? "badge bg-danger"
+                                  : "badge bg-warning text-dark"
                               }
                             >
-                              ✓ Approve
-                            </button>
-                          )}
-
-                          {lawyer.status !== "Rejected" && (
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() =>
-                                updateLawyerStatus(
-                                  lawyer.id,
-                                  "Rejected"
-                                )
+                              {
+                                lawyer.status
                               }
-                            >
-                              ✕ Reject
-                            </button>
-                          )}
+                            </span>
 
-                        </div>
+                          </td>
 
+                          <td>
+
+                            <div className="d-flex gap-2 flex-wrap">
+
+                              <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() =>
+                                  setSelectedLawyer(
+                                    lawyer
+                                  )
+                                }
+                              >
+                                👁️ View
+                              </button>
+
+                              {lawyer.status !==
+                                "Approved" && (
+
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() =>
+                                    updateLawyerStatus(
+                                      lawyer.id,
+                                      "Approved"
+                                    )
+                                  }
+                                >
+                                  ✓ Approve
+                                </button>
+
+                              )}
+
+                              {lawyer.status !==
+                                "Rejected" && (
+
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() =>
+                                    updateLawyerStatus(
+                                      lawyer.id,
+                                      "Rejected"
+                                    )
+                                  }
+                                >
+                                  ✕ Reject
+                                </button>
+
+                              )}
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+
+                      )
+                    )
+
+                  ) : (
+
+                    <tr>
+
+                      <td
+                        colSpan="7"
+                        className="text-center text-muted"
+                      >
+                        No lawyers registered.
                       </td>
 
                     </tr>
-                  ))}
+
+                  )}
 
                 </tbody>
 
@@ -490,9 +881,16 @@ function AdminDashboard() {
             </div>
 
           </div>
+
         )}
 
-        {activeSection === "users" && (
+        {/* ==============================
+            USERS
+        ============================== */}
+
+        {activeSection ===
+          "users" && (
+
           <div className="card shadow-sm p-4">
 
             <div className="mb-4">
@@ -502,7 +900,8 @@ function AdminDashboard() {
               </h3>
 
               <p className="text-muted">
-                Manage client and lawyer accounts.
+                Manage client and lawyer
+                accounts.
               </p>
 
             </div>
@@ -512,73 +911,137 @@ function AdminDashboard() {
               <table className="table align-middle">
 
                 <thead>
+
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Action</th>
+
+                    <th>
+                      Name
+                    </th>
+
+                    <th>
+                      Email
+                    </th>
+
+                    <th>
+                      Role
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      Action
+                    </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  {users.map((user) => (
-                    <tr key={user.id}>
+                  {users.length >
+                  0 ? (
 
-                      <td>
-                        <strong>
-                          {user.name}
-                        </strong>
-                      </td>
+                    users.map(
+                      (user) => (
 
-                      <td>
-                        {user.email}
-                      </td>
-
-                      <td>
-                        <span
-                          className={
-                            user.role === "Lawyer"
-                              ? "badge bg-primary"
-                              : "badge bg-secondary"
+                        <tr
+                          key={
+                            user.id
                           }
                         >
-                          {user.role}
-                        </span>
-                      </td>
 
-                      <td>
-                        <span
-                          className={
-                            user.status === "Active"
-                              ? "badge bg-success"
-                              : "badge bg-danger"
-                          }
-                        >
-                          {user.status}
-                        </span>
-                      </td>
+                          <td>
+                            <strong>
+                              {
+                                user.name
+                              }
+                            </strong>
+                          </td>
 
-                      <td>
-                        <button
-                          className={
-                            user.status === "Active"
-                              ? "btn btn-sm btn-outline-danger"
-                              : "btn btn-sm btn-outline-success"
-                          }
-                          onClick={() =>
-                            updateUserStatus(user.id)
-                          }
-                        >
-                          {user.status === "Active"
-                            ? "Deactivate"
-                            : "Activate"}
-                        </button>
+                          <td>
+                            {
+                              user.email
+                            }
+                          </td>
+
+                          <td>
+
+                            <span
+                              className={
+                                user.role ===
+                                "Lawyer"
+                                  ? "badge bg-primary"
+                                  : "badge bg-secondary"
+                              }
+                            >
+                              {
+                                user.role
+                              }
+                            </span>
+
+                          </td>
+
+                          <td>
+
+                            <span
+                              className={
+                                user.status ===
+                                "Active"
+                                  ? "badge bg-success"
+                                  : "badge bg-danger"
+                              }
+                            >
+                              {
+                                user.status
+                              }
+                            </span>
+
+                          </td>
+
+                          <td>
+
+                            <button
+                              className={
+                                user.status ===
+                                "Active"
+                                  ? "btn btn-sm btn-outline-danger"
+                                  : "btn btn-sm btn-outline-success"
+                              }
+                              onClick={() =>
+                                updateUserStatus(
+                                  user.id
+                                )
+                              }
+                            >
+                              {user.status ===
+                              "Active"
+                                ? "Deactivate"
+                                : "Activate"}
+                            </button>
+
+                          </td>
+
+                        </tr>
+
+                      )
+                    )
+
+                  ) : (
+
+                    <tr>
+
+                      <td
+                        colSpan="5"
+                        className="text-center text-muted"
+                      >
+                        No registered users yet.
                       </td>
 
                     </tr>
-                  ))}
+
+                  )}
 
                 </tbody>
 
@@ -587,9 +1050,16 @@ function AdminDashboard() {
             </div>
 
           </div>
+
         )}
 
-        {activeSection === "appointments" && (
+        {/* ==============================
+            APPOINTMENTS
+        ============================== */}
+
+        {activeSection ===
+          "appointments" && (
+
           <div className="card shadow-sm p-4">
 
             <div className="mb-4">
@@ -599,7 +1069,8 @@ function AdminDashboard() {
               </h3>
 
               <p className="text-muted">
-                Monitor all platform consultations.
+                Monitor all platform
+                consultations.
               </p>
 
             </div>
@@ -609,124 +1080,213 @@ function AdminDashboard() {
               <table className="table align-middle">
 
                 <thead>
+
                   <tr>
-                    <th>Client</th>
-                    <th>Lawyer</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Action</th>
+
+                    <th>
+                      Client
+                    </th>
+
+                    <th>
+                      Lawyer
+                    </th>
+
+                    <th>
+                      Date
+                    </th>
+
+                    <th>
+                      Time
+                    </th>
+
+                    <th>
+                      Type
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      Action
+                    </th>
+
                   </tr>
+
                 </thead>
 
                 <tbody>
 
-                  {appointments.map((appointment) => (
-                    <tr key={appointment.id}>
+                  {appointments.length >
+                  0 ? (
 
-                      <td>
-                        <strong>
-                          {appointment.client}
-                        </strong>
-                      </td>
+                    appointments.map(
+                      (appointment) => (
 
-                      <td>
-                        {appointment.lawyer}
-                      </td>
-
-                      <td>
-                        {appointment.date}
-                      </td>
-
-                      <td>
-                        {appointment.time}
-                      </td>
-
-                      <td>
-                        {appointment.type}
-                      </td>
-
-                      <td>
-
-                        <span
-                          className={
-                            appointment.status === "Confirmed"
-                              ? "badge bg-success"
-                              : appointment.status === "Completed"
-                              ? "badge bg-primary"
-                              : appointment.status === "Cancelled"
-                              ? "badge bg-danger"
-                              : "badge bg-warning text-dark"
+                        <tr
+                          key={
+                            appointment.id
                           }
                         >
-                          {appointment.status}
-                        </span>
 
-                      </td>
-
-                      <td>
-
-                        {appointment.status === "Pending" && (
-                          <div className="d-flex gap-2">
-
-                            <button
-                              className="btn btn-sm btn-success"
-                              onClick={() =>
-                                updateAppointmentStatus(
-                                  appointment.id,
-                                  "Confirmed"
-                                )
+                          <td>
+                            <strong>
+                              {
+                                appointment.client
                               }
-                            >
-                              ✓ Confirm
-                            </button>
+                            </strong>
+                          </td>
 
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() =>
-                                updateAppointmentStatus(
-                                  appointment.id,
-                                  "Cancelled"
-                                )
-                              }
-                            >
-                              ✕ Cancel
-                            </button>
-
-                          </div>
-                        )}
-
-                        {appointment.status === "Confirmed" && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() =>
-                              updateAppointmentStatus(
-                                appointment.id,
-                                "Cancelled"
-                              )
+                          <td>
+                            {
+                              appointment.lawyer
                             }
-                          >
-                            Cancel
-                          </button>
-                        )}
+                          </td>
 
-                        {appointment.status === "Completed" && (
-                          <span className="text-primary">
-                            ✓ Completed
-                          </span>
-                        )}
+                          <td>
+                            {
+                              appointment.date
+                            }
+                          </td>
 
-                        {appointment.status === "Cancelled" && (
-                          <span className="text-danger">
-                            ✕ Cancelled
-                          </span>
-                        )}
+                          <td>
+                            {
+                              appointment.time
+                            }
+                          </td>
 
+                          <td>
+                            {
+                              appointment.type
+                            }
+                          </td>
+
+                          <td>
+
+                            <span
+                              className={
+                                appointment.status ===
+                                "Confirmed"
+                                  ? "badge bg-success"
+                                  : appointment.status ===
+                                    "Completed"
+                                  ? "badge bg-primary"
+                                  : appointment.status ===
+                                    "Cancelled"
+                                  ? "badge bg-danger"
+                                  : appointment.status ===
+                                    "Rejected"
+                                  ? "badge bg-danger"
+                                  : "badge bg-warning text-dark"
+                              }
+                            >
+                              {
+                                appointment.status
+                              }
+                            </span>
+
+                          </td>
+
+                          <td>
+
+                            {appointment.status ===
+                              "Pending" && (
+
+                              <div className="d-flex gap-2">
+
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() =>
+                                    updateAppointmentStatus(
+                                      appointment.id,
+                                      "Confirmed"
+                                    )
+                                  }
+                                >
+                                  ✓ Confirm
+                                </button>
+
+                                <button
+                                  className="btn btn-sm btn-danger"
+                                  onClick={() =>
+                                    updateAppointmentStatus(
+                                      appointment.id,
+                                      "Cancelled"
+                                    )
+                                  }
+                                >
+                                  ✕ Cancel
+                                </button>
+
+                              </div>
+
+                            )}
+
+                            {appointment.status ===
+                              "Confirmed" && (
+
+                              <button
+                                className="btn btn-sm btn-outline-danger"
+                                onClick={() =>
+                                  updateAppointmentStatus(
+                                    appointment.id,
+                                    "Cancelled"
+                                  )
+                                }
+                              >
+                                Cancel
+                              </button>
+
+                            )}
+
+                            {appointment.status ===
+                              "Completed" && (
+
+                              <span className="text-primary">
+                                ✓ Completed
+                              </span>
+
+                            )}
+
+                            {appointment.status ===
+                              "Cancelled" && (
+
+                              <span className="text-danger">
+                                ✕ Cancelled
+                              </span>
+
+                            )}
+
+                            {appointment.status ===
+                              "Rejected" && (
+
+                              <span className="text-danger">
+                                ✕ Rejected
+                              </span>
+
+                            )}
+
+                          </td>
+
+                        </tr>
+
+                      )
+                    )
+
+                  ) : (
+
+                    <tr>
+
+                      <td
+                        colSpan="7"
+                        className="text-center text-muted"
+                      >
+                        No appointments found.
                       </td>
 
                     </tr>
-                  ))}
+
+                  )}
 
                 </tbody>
 
@@ -735,9 +1295,15 @@ function AdminDashboard() {
             </div>
 
           </div>
+
         )}
 
+        {/* ==============================
+            LAWYER DETAILS
+        ============================== */}
+
         {selectedLawyer && (
+
           <div className="card shadow-lg p-4 mt-4">
 
             <div className="d-flex justify-content-between">
@@ -749,7 +1315,9 @@ function AdminDashboard() {
               <button
                 className="btn btn-sm btn-outline-secondary"
                 onClick={() =>
-                  setSelectedLawyer(null)
+                  setSelectedLawyer(
+                    null
+                  )
                 }
               >
                 ✕
@@ -762,56 +1330,135 @@ function AdminDashboard() {
             <div className="row g-3">
 
               <div className="col-md-6">
-                <strong>Lawyer Name</strong>
-                <p>{selectedLawyer.name}</p>
-              </div>
 
-              <div className="col-md-6">
-                <strong>Practice Area</strong>
+                <strong>
+                  Lawyer Name
+                </strong>
+
                 <p>
-                  {selectedLawyer.specialization}
+                  {
+                    selectedLawyer.name
+                  }
                 </p>
+
               </div>
 
               <div className="col-md-6">
-                <strong>City</strong>
-                <p>{selectedLawyer.city}</p>
-              </div>
 
-              <div className="col-md-6">
-                <strong>Experience</strong>
+                <strong>
+                  Practice Area
+                </strong>
+
                 <p>
-                  {selectedLawyer.experience} Years
+                  {
+                    selectedLawyer.specialization ||
+                    "Not Selected"
+                  }
                 </p>
+
               </div>
 
               <div className="col-md-6">
-                <strong>Consultation Fee</strong>
-                <p>₹{selectedLawyer.fee}</p>
+
+                <strong>
+                  City
+                </strong>
+
+                <p>
+                  {
+                    selectedLawyer.city ||
+                    "Not Selected"
+                  }
+                </p>
+
               </div>
 
               <div className="col-md-6">
-                <strong>Verification Status</strong>
-                <p>{selectedLawyer.status}</p>
+
+                <strong>
+                  Experience
+                </strong>
+
+                <p>
+                  {
+                    selectedLawyer.experience ||
+                    0
+                  }{" "}
+                  Years
+                </p>
+
+              </div>
+
+              <div className="col-md-6">
+
+                <strong>
+                  Consultation Fee
+                </strong>
+
+                <p>
+                  ₹
+                  {
+                    selectedLawyer.fee ||
+                    0
+                  }
+                </p>
+
+              </div>
+
+              <div className="col-md-6">
+
+                <strong>
+                  Verification Status
+                </strong>
+
+                <p>
+                  {
+                    selectedLawyer.status
+                  }
+                </p>
+
               </div>
 
               {selectedLawyer.email && (
+
                 <div className="col-md-6">
-                  <strong>Email</strong>
-                  <p>{selectedLawyer.email}</p>
+
+                  <strong>
+                    Email
+                  </strong>
+
+                  <p>
+                    {
+                      selectedLawyer.email
+                    }
+                  </p>
+
                 </div>
+
               )}
 
               {selectedLawyer.phone && (
+
                 <div className="col-md-6">
-                  <strong>Phone</strong>
-                  <p>{selectedLawyer.phone}</p>
+
+                  <strong>
+                    Phone
+                  </strong>
+
+                  <p>
+                    {
+                      selectedLawyer.phone
+                    }
+                  </p>
+
                 </div>
+
               )}
 
             </div>
 
           </div>
+
         )}
 
       </div>

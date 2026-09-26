@@ -5,35 +5,62 @@ import "../App.css";
 function ManageAvailability() {
   const [selectedDay, setSelectedDay] = useState("Monday");
 
-  const [days, setDays] = useState(() => {
+  /* =====================================================
+     DEFAULT AVAILABILITY
+  ===================================================== */
+
+  const defaultDays = {
+    Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
+    Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+    Wednesday: ["11:00 AM", "3:00 PM"],
+    Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
+    Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
+    Saturday: ["10:00 AM", "12:00 PM"],
+    Sunday: [],
+  };
+
+  /* =====================================================
+     GET LOGGED-IN LAWYER
+  ===================================================== */
+
+  const getLoggedInUser = () => {
     try {
-      const savedDays = localStorage.getItem(
-        "advocaOneAvailability"
+      return JSON.parse(
+        localStorage.getItem("advocaOneLoggedInUser") || "null"
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  const loggedInUser = getLoggedInUser();
+
+  const loggedInEmail =
+    loggedInUser?.email?.trim().toLowerCase() || "";
+
+  /* =====================================================
+     LOAD LAWYER-SPECIFIC AVAILABILITY
+  ===================================================== */
+
+  const getSavedAvailability = () => {
+    if (!loggedInEmail) {
+      return defaultDays;
+    }
+
+    try {
+      const allAvailabilities = JSON.parse(
+        localStorage.getItem("advocaOneAvailabilities") || "{}"
       );
 
-      return savedDays
-        ? JSON.parse(savedDays)
-        : {
-            Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
-            Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-            Wednesday: ["11:00 AM", "3:00 PM"],
-            Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
-            Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-            Saturday: ["10:00 AM", "12:00 PM"],
-            Sunday: [],
-          };
+      return allAvailabilities[loggedInEmail] || defaultDays;
     } catch {
-      return {
-        Monday: ["10:00 AM", "2:00 PM", "5:00 PM"],
-        Tuesday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-        Wednesday: ["11:00 AM", "3:00 PM"],
-        Thursday: ["10:00 AM", "2:00 PM", "6:00 PM"],
-        Friday: ["10:00 AM", "1:00 PM", "4:00 PM"],
-        Saturday: ["10:00 AM", "12:00 PM"],
-        Sunday: [],
-      };
+      return defaultDays;
     }
-  });
+  };
+
+  const [days, setDays] = useState(
+    getSavedAvailability
+  );
 
   const [newSlot, setNewSlot] = useState("");
   const [saved, setSaved] = useState(false);
@@ -48,6 +75,10 @@ function ManageAvailability() {
     "Sunday",
   ];
 
+  /* =====================================================
+     FORMAT TIME
+  ===================================================== */
+
   const formatTime = (time) => {
     const [hours, minutes] = time.split(":");
     const hour = Number(hours);
@@ -58,8 +89,14 @@ function ManageAvailability() {
     return `${displayHour}:${minutes} ${period}`;
   };
 
+  /* =====================================================
+     CONVERT TIME TO MINUTES
+  ===================================================== */
+
   const convertToMinutes = (time) => {
-    const match = time.match(/(\d+):(\d+)\s(AM|PM)/);
+    const match = time.match(
+      /(\d+):(\d+)\s(AM|PM)/
+    );
 
     if (!match) {
       return 0;
@@ -80,9 +117,20 @@ function ManageAvailability() {
     return hours * 60 + minutes;
   };
 
+  /* =====================================================
+     ADD SLOT
+  ===================================================== */
+
   const addSlot = () => {
     if (!newSlot) {
       alert("Please select a time.");
+      return;
+    }
+
+    if (!loggedInEmail) {
+      alert(
+        "Logged-in lawyer account not found. Please login again."
+      );
       return;
     }
 
@@ -97,7 +145,9 @@ function ManageAvailability() {
       ...days[selectedDay],
       formattedSlot,
     ].sort(
-      (a, b) => convertToMinutes(a) - convertToMinutes(b)
+      (a, b) =>
+        convertToMinutes(a) -
+        convertToMinutes(b)
     );
 
     const updatedDays = {
@@ -110,10 +160,16 @@ function ManageAvailability() {
     setSaved(false);
   };
 
+  /* =====================================================
+     REMOVE SLOT
+  ===================================================== */
+
   const removeSlot = (slot) => {
     const updatedDays = {
       ...days,
-      [selectedDay]: days[selectedDay].filter(
+      [selectedDay]: days[
+        selectedDay
+      ].filter(
         (time) => time !== slot
       ),
     };
@@ -122,10 +178,53 @@ function ManageAvailability() {
     setSaved(false);
   };
 
+  /* =====================================================
+     SAVE LAWYER-SPECIFIC AVAILABILITY
+  ===================================================== */
+
   const saveAvailability = () => {
+    if (!loggedInEmail) {
+      alert(
+        "Logged-in lawyer account not found. Please login again."
+      );
+      return;
+    }
+
+    let allAvailabilities = {};
+
+    try {
+      allAvailabilities =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneAvailabilities"
+          ) || "{}"
+        ) || {};
+    } catch {
+      allAvailabilities = {};
+    }
+
+    /* Save only for current lawyer */
+
+    allAvailabilities[
+      loggedInEmail
+    ] = days;
+
+    localStorage.setItem(
+      "advocaOneAvailabilities",
+      JSON.stringify(
+        allAvailabilities
+      )
+    );
+
+    /* Keep old storage temporarily for compatibility */
+
     localStorage.setItem(
       "advocaOneAvailability",
       JSON.stringify(days)
+    );
+
+    window.dispatchEvent(
+      new Event("storage")
     );
 
     setSaved(true);
@@ -138,8 +237,12 @@ function ManageAvailability() {
   return (
     <div className="lawyer-dashboard-page">
 
-      {/* Navbar */}
+      {/* =================================================
+          NAVBAR
+      ================================================= */}
+
       <nav className="navbar navbar-dark bg-dark">
+
         <div className="container">
 
           <Link
@@ -157,9 +260,13 @@ function ManageAvailability() {
           </Link>
 
         </div>
+
       </nav>
 
-      {/* Main Content */}
+      {/* =================================================
+          MAIN CONTENT
+      ================================================= */}
+
       <div className="container py-5">
 
         <div className="mb-4">
@@ -169,14 +276,27 @@ function ManageAvailability() {
           </h1>
 
           <p className="text-muted">
-            Set the days and time slots when clients can book consultations.
+            Set the days and time slots when clients
+            can book consultations.
           </p>
+
+          {loggedInUser?.name && (
+            <div className="alert alert-info">
+              👨‍⚖️ Managing availability for{" "}
+              <strong>
+                {loggedInUser.name}
+              </strong>
+            </div>
+          )}
 
         </div>
 
         <div className="row g-4">
 
-          {/* Working Days */}
+          {/* =================================================
+              WORKING DAYS
+          ================================================= */}
+
           <div className="col-md-4">
 
             <div className="card shadow-sm p-3">
@@ -194,7 +314,9 @@ function ManageAvailability() {
                       ? "btn btn-primary mb-2 text-start"
                       : "btn btn-outline-secondary mb-2 text-start"
                   }
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() =>
+                    setSelectedDay(day)
+                  }
                 >
                   {day}
 
@@ -210,7 +332,10 @@ function ManageAvailability() {
 
           </div>
 
-          {/* Availability Slots */}
+          {/* =================================================
+              AVAILABILITY SLOTS
+          ================================================= */}
+
           <div className="col-md-8">
 
             <div className="card shadow-sm p-4">
@@ -240,7 +365,9 @@ function ManageAvailability() {
 
                 ) : (
 
-                  days[selectedDay].map((slot) => (
+                  days[
+                    selectedDay
+                  ].map((slot) => (
 
                     <div
                       className="col-sm-6 col-lg-4"
@@ -255,7 +382,9 @@ function ManageAvailability() {
 
                         <button
                           className="btn btn-sm btn-outline-danger"
-                          onClick={() => removeSlot(slot)}
+                          onClick={() =>
+                            removeSlot(slot)
+                          }
                         >
                           ✕
                         </button>
@@ -272,7 +401,10 @@ function ManageAvailability() {
 
               <hr />
 
-              {/* Add Slot */}
+              {/* =================================================
+                  ADD SLOT
+              ================================================= */}
+
               <h5 className="fw-bold">
                 ➕ Add New Time Slot
               </h5>
@@ -286,7 +418,9 @@ function ManageAvailability() {
                     className="form-control"
                     value={newSlot}
                     onChange={(e) =>
-                      setNewSlot(e.target.value)
+                      setNewSlot(
+                        e.target.value
+                      )
                     }
                   />
 
@@ -305,10 +439,15 @@ function ManageAvailability() {
 
               </div>
 
-              {/* Save */}
+              {/* =================================================
+                  SAVE
+              ================================================= */}
+
               <button
                 className="btn btn-success btn-lg w-100 mt-4"
-                onClick={saveAvailability}
+                onClick={
+                  saveAvailability
+                }
               >
                 💾 Save Availability
               </button>

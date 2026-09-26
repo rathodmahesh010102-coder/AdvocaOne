@@ -15,32 +15,94 @@ function Register() {
   const handleRegister = (e) => {
     e.preventDefault();
 
-    if (!name || !email || !phone || !password) {
+    // Check all fields
+    if (
+      !name.trim() ||
+      !email.trim() ||
+      !phone.trim() ||
+      !password
+    ) {
       alert("Please fill all fields");
       return;
     }
 
-    if (!/^[0-9]{10}$/.test(phone)) {
+    // Check phone number
+    if (!/^[0-9]{10}$/.test(phone.trim())) {
       alert("Please enter a valid 10-digit phone number");
       return;
     }
 
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
+    // Check email
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
       alert("Please enter a valid email address");
       return;
     }
 
+    // Check password
     if (password.length < 6) {
       alert("Password must be at least 6 characters");
       return;
     }
 
+    // Only Client and Lawyer registration is allowed
+    if (role !== "Client" && role !== "Lawyer") {
+      alert("Invalid registration role");
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Create account
+    const newAccount = {
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone.trim(),
+      password: password,
+      role: role,
+    };
+
+    // Load existing accounts
+    let existingAccounts = [];
+
+    try {
+      existingAccounts =
+        JSON.parse(
+          localStorage.getItem("advocaOneAccounts") || "[]"
+        ) || [];
+    } catch {
+      existingAccounts = [];
+    }
+
+    // Check duplicate email
+    const accountExists = existingAccounts.some(
+      (account) =>
+        account.email?.trim().toLowerCase() === normalizedEmail
+    );
+
+    if (accountExists) {
+      alert("An account with this email already exists.");
+      return;
+    }
+
+    // Save account
+    localStorage.setItem(
+      "advocaOneAccounts",
+      JSON.stringify([
+        ...existingAccounts,
+        newAccount,
+      ])
+    );
+
+    // ========================================
+    // LAWYER REGISTRATION
+    // ========================================
+
     if (role === "Lawyer") {
       const newLawyer = {
         id: Date.now(),
-        name: `Adv. ${name}`,
-        email: email,
-        phone: phone,
+        name: `Adv. ${name.trim()}`,
+        email: normalizedEmail,
+        phone: phone.trim(),
         specialization: "Not Selected",
         city: "Not Selected",
         experience: 0,
@@ -51,22 +113,28 @@ function Register() {
         onlineStatus: "Offline",
         appointmentStatus: "Accepting Appointments",
         nextAvailable: "Contact for availability",
-        slots: []
+        slots: [],
       };
 
-      const existingLawyers =
-        JSON.parse(
-          localStorage.getItem("advocaOneAdminLawyers")
-        ) || [];
+      let existingLawyers = [];
 
-      const updatedLawyers = [
-        ...existingLawyers,
-        newLawyer
-      ];
+      try {
+        existingLawyers =
+          JSON.parse(
+            localStorage.getItem(
+              "advocaOneAdminLawyers"
+            ) || "[]"
+          ) || [];
+      } catch {
+        existingLawyers = [];
+      }
 
       localStorage.setItem(
         "advocaOneAdminLawyers",
-        JSON.stringify(updatedLawyers)
+        JSON.stringify([
+          ...existingLawyers,
+          newLawyer,
+        ])
       );
 
       alert(
@@ -77,7 +145,47 @@ function Register() {
       return;
     }
 
+    // ========================================
+    // CLIENT REGISTRATION
+    // ========================================
+
+    let clientProfiles = {};
+
+    try {
+      clientProfiles =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneUserProfiles"
+          ) || "{}"
+        ) || {};
+    } catch {
+      clientProfiles = {};
+    }
+
+    // Save profile using client email as unique key
+    clientProfiles[normalizedEmail] = {
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone.trim(),
+    };
+
+    localStorage.setItem(
+      "advocaOneUserProfiles",
+      JSON.stringify(clientProfiles)
+    );
+
+    // Keep old storage for compatibility
+    localStorage.setItem(
+      "advocaOneUserProfile",
+      JSON.stringify({
+        name: name.trim(),
+        email: normalizedEmail,
+        phone: phone.trim(),
+      })
+    );
+
     alert("Client registration successful!");
+
     navigate("/login");
   };
 
@@ -97,6 +205,8 @@ function Register() {
 
         <form onSubmit={handleRegister}>
 
+          {/* Full Name */}
+
           <label className="form-label">
             Full Name
           </label>
@@ -108,6 +218,8 @@ function Register() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
+
+          {/* Email */}
 
           <label className="form-label">
             Email Address
@@ -121,6 +233,8 @@ function Register() {
             onChange={(e) => setEmail(e.target.value)}
           />
 
+          {/* Phone */}
+
           <label className="form-label">
             Phone Number
           </label>
@@ -132,6 +246,8 @@ function Register() {
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
+
+          {/* Role */}
 
           <label className="form-label">
             Register As
@@ -151,6 +267,8 @@ function Register() {
             </option>
           </select>
 
+          {/* Password */}
+
           <label className="form-label">
             Password
           </label>
@@ -163,15 +281,21 @@ function Register() {
             onChange={(e) => setPassword(e.target.value)}
           />
 
+          {/* Show / Hide Password */}
+
           <button
             type="button"
             className="btn btn-outline-secondary w-100 mb-3"
-            onClick={() => setShowPassword(!showPassword)}
+            onClick={() =>
+              setShowPassword(!showPassword)
+            }
           >
             {showPassword
               ? "🙈 Hide Password"
               : "👁️ Show Password"}
           </button>
+
+          {/* Register */}
 
           <button
             type="submit"
