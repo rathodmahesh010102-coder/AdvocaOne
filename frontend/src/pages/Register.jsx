@@ -109,6 +109,8 @@ function Register() {
         fee: 0,
         barCouncilNumber: "",
         enrollmentNumber: "",
+        barCouncilCertificate: "",
+enrollmentCertificate: "",
         status: "Pending",
         onlineStatus: "Offline",
         appointmentStatus: "Accepting Appointments",

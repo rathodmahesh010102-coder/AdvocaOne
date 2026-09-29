@@ -1,10 +1,12 @@
 import { useState } from "react";
+
 import {
   useNavigate,
   useParams,
   Link,
   useSearchParams,
 } from "react-router-dom";
+
 import lawyers from "../data/lawyers";
 import "../App.css";
 
@@ -103,14 +105,10 @@ function Booking() {
     useState("");
 
   const [selectedTime, setSelectedTime] =
-    useState(
-      selectedTimeFromProfile
-    );
+    useState(selectedTimeFromProfile);
 
   const [selectedDay, setSelectedDay] =
-    useState(
-      selectedDayFromProfile
-    );
+    useState(selectedDayFromProfile);
 
   const [userName, setUserName] =
     useState("");
@@ -130,6 +128,12 @@ function Booking() {
   const [isBooked, setIsBooked] =
     useState(false);
 
+  const [createdBooking, setCreatedBooking] =
+    useState(null);
+
+  const [createdChatId, setCreatedChatId] =
+    useState("");
+
   /* =====================================================
      LAWYER NOT FOUND
   ===================================================== */
@@ -137,7 +141,6 @@ function Booking() {
   if (!lawyer) {
     return (
       <div className="container py-5 text-center">
-
         <h2>
           Lawyer Not Found
         </h2>
@@ -148,7 +151,6 @@ function Booking() {
         >
           ← Back to Home
         </Link>
-
       </div>
     );
   }
@@ -267,6 +269,257 @@ function Booking() {
   };
 
   /* =====================================================
+     GET LOGGED-IN CLIENT
+  ===================================================== */
+
+  const getLoggedInUser = () => {
+    try {
+      return (
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneLoggedInUser"
+          ) || "null"
+        ) || null
+      );
+    } catch {
+      return null;
+    }
+  };
+
+  /* =====================================================
+     GET USER IDENTIFIER
+  ===================================================== */
+
+  const getUserIdentifier = (user) => {
+    if (!user) return "";
+
+    return String(
+      user.email ||
+        user.id ||
+        user.userId ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+  };
+
+  /* =====================================================
+     CREATE / FIND CHAT CONVERSATION
+  ===================================================== */
+
+  const createOrFindChat = (
+    booking,
+    loggedInUser
+  ) => {
+    let chats = [];
+
+    try {
+      chats =
+        JSON.parse(
+          localStorage.getItem(
+            "advocaOneChats"
+          ) || "[]"
+        ) || [];
+    } catch {
+      chats = [];
+    }
+
+    const clientIdentifier =
+      getUserIdentifier(
+        loggedInUser
+      );
+
+    const lawyerIdentifier =
+      getUserIdentifier({
+        email: lawyer.email,
+        id: lawyer.id,
+      });
+
+    /*
+      Find existing conversation between
+      this client and lawyer.
+    */
+
+    const existingChatIndex =
+      chats.findIndex((chat) => {
+        const sameClient =
+          String(chat.clientId || "")
+            .trim()
+            .toLowerCase() ===
+          clientIdentifier;
+
+        const sameLawyer =
+          String(chat.lawyerId || "")
+            .trim()
+            .toLowerCase() ===
+          lawyerIdentifier;
+
+        return (
+          sameClient &&
+          sameLawyer
+        );
+      });
+
+    /*
+      If conversation already exists,
+      attach the new appointment to it.
+    */
+
+    if (
+      existingChatIndex !== -1
+    ) {
+      const existingChat =
+        chats[existingChatIndex];
+
+      const appointmentIds =
+        Array.isArray(
+          existingChat.appointmentIds
+        )
+          ? existingChat.appointmentIds
+          : [];
+
+      if (
+        !appointmentIds.includes(
+          String(booking.id)
+        )
+      ) {
+        appointmentIds.push(
+          String(booking.id)
+        );
+      }
+
+      const updatedChat = {
+        ...existingChat,
+
+        appointmentIds,
+
+        lastBookingId:
+          String(booking.id),
+
+        updatedAt:
+          new Date().toISOString(),
+      };
+
+      chats[
+        existingChatIndex
+      ] = updatedChat;
+
+      localStorage.setItem(
+        "advocaOneChats",
+        JSON.stringify(chats)
+      );
+
+      window.dispatchEvent(
+        new Event(
+          "advocaOneDataUpdated"
+        )
+      );
+
+      return updatedChat.id;
+    }
+
+    /*
+      Create new conversation.
+    */
+
+    const chatId =
+      `chat_${Date.now()}_${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
+
+    const newChat = {
+      id: chatId,
+
+      clientId:
+        clientIdentifier,
+
+      clientName:
+        loggedInUser?.name ||
+        booking.userName,
+
+      clientEmail:
+        loggedInUser?.email ||
+        booking.userEmail,
+
+      lawyerId:
+        lawyerIdentifier,
+
+      lawyerName:
+        lawyer.name,
+
+      lawyerEmail:
+        lawyer.email || "",
+
+      lawyerSpecialization:
+        lawyer.specialization ||
+        "",
+
+      appointmentIds: [
+        String(booking.id),
+      ],
+
+      lastBookingId:
+        String(booking.id),
+
+      lastMessage:
+        "Conversation started.",
+
+      lastMessageAt:
+        new Date().toISOString(),
+
+      updatedAt:
+        new Date().toISOString(),
+
+      unreadFor:
+        "",
+
+      unreadCount: 0,
+
+      messages: [
+        {
+          id:
+            `message_${Date.now()}`,
+
+          senderId:
+            "system",
+
+          senderName:
+            "AdvocaOne",
+
+          senderRole:
+            "system",
+
+          text:
+            `Your consultation booking with ${lawyer.name} has been created. You can use this chat to communicate with the lawyer.`,
+
+          timestamp:
+            new Date().toISOString(),
+
+          read: true,
+        },
+      ],
+
+      createdAt:
+        new Date().toISOString(),
+    };
+
+    chats.push(newChat);
+
+    localStorage.setItem(
+      "advocaOneChats",
+      JSON.stringify(chats)
+    );
+
+    window.dispatchEvent(
+      new Event(
+        "advocaOneDataUpdated"
+      )
+    );
+
+    return chatId;
+  };
+
+  /* =====================================================
      HANDLE BOOKING
   ===================================================== */
 
@@ -282,6 +535,7 @@ function Booking() {
       alert(
         "Please enter all required details and select a date and time."
       );
+
       return;
     }
 
@@ -295,6 +549,7 @@ function Booking() {
       alert(
         "Please enter a valid email address."
       );
+
       return;
     }
 
@@ -308,6 +563,7 @@ function Booking() {
       alert(
         "Please enter a valid 10-digit phone number."
       );
+
       return;
     }
 
@@ -320,6 +576,7 @@ function Booking() {
       alert(
         "This lawyer is currently not accepting appointments."
       );
+
       return;
     }
 
@@ -365,8 +622,27 @@ function Booking() {
       alert(
         "⚠️ This time slot is already booked. Please select another time."
       );
+
       return;
     }
+
+    /* =================================================
+       GET LOGGED-IN USER
+    ================================================= */
+
+    const loggedInUser =
+      getLoggedInUser();
+
+    /*
+      Use form data as fallback if the
+      user object is not available.
+    */
+
+    const clientId =
+      loggedInUser?.id ||
+      loggedInUser?.userId ||
+      loggedInUser?.email ||
+      userEmail.trim();
 
     /* =================================================
        CREATE BOOKING
@@ -375,7 +651,7 @@ function Booking() {
     const newBooking = {
       id: Date.now(),
 
-      /* Correct lawyer identity */
+      /* Lawyer identity */
 
       lawyerId:
         lawyer.id,
@@ -383,13 +659,32 @@ function Booking() {
       lawyerName:
         lawyer.name,
 
+      lawyerEmail:
+        lawyer.email || "",
+
       specialization:
         lawyer.specialization,
 
       location:
         lawyer.location,
 
-      /* Client information */
+      /* Client identity */
+
+      clientId,
+
+      clientName:
+        userName.trim(),
+
+      clientEmail:
+        userEmail.trim(),
+
+      clientPhone:
+        userPhone.trim(),
+
+      /*
+        Preserve old field names
+        for existing application compatibility.
+      */
 
       userName:
         userName.trim(),
@@ -423,6 +718,12 @@ function Booking() {
 
       status:
         "Pending",
+
+      createdAt:
+        new Date().toISOString(),
+
+      updatedAt:
+        new Date().toISOString(),
     };
 
     /* =================================================
@@ -441,7 +742,63 @@ function Booking() {
       )
     );
 
+    /* =================================================
+       CREATE / CONNECT CHAT
+    ================================================= */
+
+    const chatId =
+      createOrFindChat(
+        newBooking,
+        loggedInUser || {
+          id: clientId,
+          name: userName.trim(),
+          email: userEmail.trim(),
+        }
+      );
+
+    /* =================================================
+       SAVE CREATED DATA FOR CONFIRMATION
+    ================================================= */
+
+    setCreatedBooking(
+      newBooking
+    );
+
+    setCreatedChatId(
+      chatId
+    );
+
     setIsBooked(true);
+
+    /* =================================================
+       GLOBAL DATA UPDATE
+    ================================================= */
+
+    window.dispatchEvent(
+      new Event(
+        "advocaOneDataUpdated"
+      )
+    );
+  };
+
+  /* =====================================================
+     OPEN CHAT
+  ===================================================== */
+
+  const handleOpenChat = () => {
+    if (!createdChatId) {
+      alert(
+        "Chat conversation could not be opened."
+      );
+
+      return;
+    }
+
+    navigate(
+      `/chat?chat=${encodeURIComponent(
+        createdChatId
+      )}`
+    );
   };
 
   /* =====================================================
@@ -449,36 +806,47 @@ function Booking() {
   ===================================================== */
 
   if (isBooked) {
+    const booking =
+      createdBooking || {};
+
     return (
       <div className="booking-page">
-
         <nav className="navbar navbar-dark bg-dark">
-
           <div className="container">
-
             <Link
               to="/"
               className="navbar-brand fw-bold"
             >
               ⚖️ AdvocaOne
             </Link>
-
           </div>
-
         </nav>
 
         <div className="container py-5">
-
           <div className="booking-confirmation">
 
             <h3>
-              ✅ Booking Confirmed!
+              ✅ Booking Created Successfully!
             </h3>
 
             <p className="confirmation-message">
-              Your consultation has been
-              successfully booked.
+              Your consultation request has been
+              successfully submitted.
             </p>
+
+            {/* Booking Status */}
+
+            <div className="alert alert-warning">
+              ⏳{" "}
+              <strong>
+                Status: Pending
+              </strong>
+
+              <br />
+
+              The lawyer needs to confirm
+              your appointment.
+            </div>
 
             <p>
               <strong>
@@ -498,21 +866,24 @@ function Booking() {
               <strong>
                 Name:
               </strong>{" "}
-              {userName}
+              {booking.userName ||
+                userName}
             </p>
 
             <p>
               <strong>
                 Email:
               </strong>{" "}
-              {userEmail}
+              {booking.userEmail ||
+                userEmail}
             </p>
 
             <p>
               <strong>
                 Phone:
               </strong>{" "}
-              {userPhone}
+              {booking.userPhone ||
+                userPhone}
             </p>
 
             <p className="appointment-detail">
@@ -520,16 +891,17 @@ function Booking() {
               <strong>
                 Date:
               </strong>{" "}
-              {selectedDate}
+              {booking.date ||
+                selectedDate}
             </p>
 
-            {selectedDay && (
+            {booking.day && (
               <p className="appointment-detail">
                 🗓️{" "}
                 <strong>
                   Day:
                 </strong>{" "}
-                {selectedDay}
+                {booking.day}
               </p>
             )}
 
@@ -538,22 +910,45 @@ function Booking() {
               <strong>
                 Time:
               </strong>{" "}
-              {selectedTime}
+              {booking.time ||
+                selectedTime}
             </p>
 
             <p>
               <strong>
                 Consultation:
               </strong>{" "}
-              {consultationType}
+              {booking.consultationType ||
+                consultationType}
             </p>
 
             <p>
               <strong>
                 Fee:
               </strong>{" "}
-              ₹{lawyer.consultationFee}
+              ₹
+              {lawyer.consultationFee}
             </p>
+
+            {/* =================================================
+                CHAT INFORMATION
+            ================================================= */}
+
+            <div className="alert alert-info mt-4">
+              💬{" "}
+              <strong>
+                Chat is now available
+              </strong>
+
+              <br />
+
+              You can communicate with the lawyer
+              through AdvocaOne chat.
+            </div>
+
+            {/* =================================================
+                BUTTONS
+            ================================================= */}
 
             <div className="confirmation-buttons">
 
@@ -569,6 +964,15 @@ function Booking() {
               </button>
 
               <button
+                className="btn btn-success"
+                onClick={
+                  handleOpenChat
+                }
+              >
+                💬 Chat with Lawyer
+              </button>
+
+              <button
                 className="btn btn-outline-primary"
                 onClick={() =>
                   navigate("/")
@@ -580,9 +984,7 @@ function Booking() {
             </div>
 
           </div>
-
         </div>
-
       </div>
     );
   }
@@ -595,7 +997,6 @@ function Booking() {
     <div className="booking-page">
 
       <nav className="navbar navbar-dark bg-dark">
-
         <div className="container">
 
           <Link
@@ -613,7 +1014,6 @@ function Booking() {
           </Link>
 
         </div>
-
       </nav>
 
       <div className="container py-5">
@@ -674,7 +1074,8 @@ function Booking() {
                     <strong>
                       Fee:
                     </strong>{" "}
-                    ₹{lawyer.consultationFee}
+                    ₹
+                    {lawyer.consultationFee}
                   </span>
 
                 </div>
@@ -789,14 +1190,12 @@ function Booking() {
 
                 {availableDays.map(
                   ([day, slots]) => (
-
                     <option
                       key={day}
                       value={day}
                     >
                       {day} ({slots.length} slots)
                     </option>
-
                   )
                 )}
 
@@ -807,9 +1206,11 @@ function Booking() {
                 <div className="alert alert-success mt-3">
 
                   🗓️{" "}
+
                   <strong>
                     Selected Day:
                   </strong>{" "}
+
                   {selectedDayFromProfile}
 
                 </div>
@@ -962,10 +1363,21 @@ function Booking() {
                   </span>
 
                   <strong>
-                    ₹{lawyer.consultationFee}
+                    ₹
+                    {lawyer.consultationFee}
                   </strong>
 
                 </div>
+
+              </div>
+
+              {/* Chat Notice */}
+
+              <div className="alert alert-info">
+
+                💬 After submitting the booking,
+                a chat conversation with this lawyer
+                will be created automatically.
 
               </div>
 

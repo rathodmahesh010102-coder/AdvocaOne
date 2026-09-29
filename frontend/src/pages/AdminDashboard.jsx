@@ -1,90 +1,170 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import "../App.css";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/AdminDashboard.css";
 
 function AdminDashboard() {
-  const [activeSection, setActiveSection] =
-    useState("lawyers");
+  const navigate = useNavigate();
 
-  const [selectedLawyer, setSelectedLawyer] =
-    useState(null);
+  /* =========================================================
+     STATE
+  ========================================================= */
 
-  // Default lawyers for demo
+  const [activeSection, setActiveSection] = useState("overview");
+
+  const [lawyers, setLawyers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [appointments, setAppointments] = useState([]);
+
+  const [selectedLawyer, setSelectedLawyer] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+
+  const [showLawyerDetails, setShowLawyerDetails] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showAppointmentDetails, setShowAppointmentDetails] = useState(false);
+
+  /* Lawyer filters */
+  const [lawyerSearch, setLawyerSearch] = useState("");
+  const [lawyerStatusFilter, setLawyerStatusFilter] = useState("All");
+  const [lawyerAccountFilter, setLawyerAccountFilter] = useState("All");
+  const [lawyerPracticeFilter, setLawyerPracticeFilter] = useState("All");
+  const [lawyerCityFilter, setLawyerCityFilter] = useState("All");
+
+  /* User filters */
+  const [userSearch, setUserSearch] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("All");
+  const [userStatusFilter, setUserStatusFilter] = useState("All");
+
+  /* Appointment filters */
+  const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [appointmentStatusFilter, setAppointmentStatusFilter] = useState("All");
+  const [appointmentTypeFilter, setAppointmentTypeFilter] = useState("All");
+  const [appointmentDateFilter, setAppointmentDateFilter] = useState("");
+
+  /* =========================================================
+     DEFAULT DATA
+  ========================================================= */
+
   const defaultLawyers = [
     {
       id: 1,
       name: "Adv. Rahul Sharma",
+      email: "rahul@advocaone.com",
+      phone: "9876543210",
       specialization: "Criminal Law",
       city: "Pune",
       experience: 8,
       fee: 1000,
       status: "Approved",
+      accountStatus: "Active",
+      documents: {
+        barCouncilCertificate: "Uploaded",
+        identityProof: "Uploaded",
+        degreeCertificate: "Uploaded",
+      },
     },
     {
       id: 2,
       name: "Adv. Priya Patil",
+      email: "priya@advocaone.com",
+      phone: "9876543211",
       specialization: "Family Law",
       city: "Mumbai",
       experience: 6,
       fee: 800,
       status: "Approved",
+      accountStatus: "Active",
+      documents: {
+        barCouncilCertificate: "Uploaded",
+        identityProof: "Uploaded",
+        degreeCertificate: "Uploaded",
+      },
     },
     {
       id: 3,
       name: "Adv. Amit Deshmukh",
+      email: "amit@advocaone.com",
+      phone: "9876543212",
       specialization: "Corporate Law",
       city: "Pune",
       experience: 10,
       fee: 1500,
       status: "Pending",
+      accountStatus: "Active",
+      documents: {
+        barCouncilCertificate: "Uploaded",
+        identityProof: "Uploaded",
+        degreeCertificate: "Pending",
+      },
     },
     {
       id: 4,
       name: "Adv. Sneha Joshi",
+      email: "sneha@advocaone.com",
+      phone: "9876543213",
       specialization: "Cyber Law",
       city: "Nashik",
       experience: 5,
       fee: 900,
       status: "Rejected",
+      accountStatus: "Active",
+      documents: {
+        barCouncilCertificate: "Uploaded",
+        identityProof: "Uploaded",
+        degreeCertificate: "Uploaded",
+      },
     },
     {
       id: 5,
       name: "Adv. Vikram Singh",
+      email: "vikram@advocaone.com",
+      phone: "9876543214",
       specialization: "Property Law",
       city: "Delhi",
       experience: 12,
       fee: 2000,
       status: "Approved",
+      accountStatus: "Active",
+      documents: {
+        barCouncilCertificate: "Uploaded",
+        identityProof: "Uploaded",
+        degreeCertificate: "Uploaded",
+      },
     },
   ];
 
-  const [lawyers, setLawyers] =
-    useState([]);
-
-  const [users, setUsers] =
-    useState([]);
-
-  const [appointments, setAppointments] =
-    useState([]);
-
-  // ==============================
-  // LOAD LAWYERS
-  // ==============================
+  /* =========================================================
+     LOAD DATA
+  ========================================================= */
 
   const loadLawyers = () => {
     try {
-      const savedLawyers =
-        JSON.parse(
-          localStorage.getItem(
-            "advocaOneAdminLawyers"
-          ) || "[]"
-        ) || [];
+      const savedLawyers = JSON.parse(
+        localStorage.getItem("advocaOneAdminLawyers") || "[]"
+      );
 
-      if (
-        Array.isArray(savedLawyers) &&
-        savedLawyers.length > 0
-      ) {
-        setLawyers(savedLawyers);
+      if (Array.isArray(savedLawyers) && savedLawyers.length > 0) {
+        const normalizedLawyers = savedLawyers.map((lawyer, index) => ({
+          id: lawyer.id || index + 1,
+          name: lawyer.name || "Unnamed Lawyer",
+          email: lawyer.email || "",
+          phone: lawyer.phone || "",
+          specialization:
+            lawyer.specialization || lawyer.practiceArea || "Not Selected",
+          city: lawyer.city || "Not Selected",
+          experience: lawyer.experience || 0,
+          fee: lawyer.fee || 0,
+          status: lawyer.status || "Pending",
+          accountStatus: lawyer.accountStatus || "Active",
+          documents: lawyer.documents || {
+            barCouncilCertificate: "Not Uploaded",
+            identityProof: "Not Uploaded",
+            degreeCertificate: "Not Uploaded",
+          },
+        }));
+
+        setLawyers(normalizedLawyers);
       } else {
         setLawyers(defaultLawyers);
 
@@ -94,146 +174,93 @@ function AdminDashboard() {
         );
       }
     } catch (error) {
-      console.error(
-        "Error loading lawyers:",
-        error
-      );
-
+      console.error("Error loading lawyers:", error);
       setLawyers(defaultLawyers);
     }
   };
 
-  // ==============================
-  // LOAD USERS
-  // ==============================
-
   const loadUsers = () => {
     try {
-      const savedAccounts =
-        JSON.parse(
-          localStorage.getItem(
-            "advocaOneAccounts"
-          ) || "[]"
-        ) || [];
-
-      if (Array.isArray(savedAccounts)) {
-        const formattedUsers =
-          savedAccounts.map(
-            (account, index) => ({
-              id:
-                account.id ||
-                index + 1,
-
-              name:
-                account.name ||
-                "User",
-
-              email:
-                account.email ||
-                "",
-
-              role:
-                account.role ||
-                "Client",
-
-              status:
-                account.status ||
-                "Active",
-            })
-          );
-
-        setUsers(
-          formattedUsers
-        );
-      } else {
-        setUsers([]);
-      }
-    } catch (error) {
-      console.error(
-        "Error loading users:",
-        error
+      const savedAccounts = JSON.parse(
+        localStorage.getItem("advocaOneAccounts") || "[]"
       );
 
+      if (!Array.isArray(savedAccounts)) {
+        setUsers([]);
+        return;
+      }
+
+      const formattedUsers = savedAccounts.map((account, index) => ({
+        id: account.id || index + 1,
+        name: account.name || account.fullName || "User",
+        email: account.email || "",
+        phone: account.phone || "",
+        role: account.role || "Client",
+        status: account.status || "Active",
+        createdAt: account.createdAt || "",
+      }));
+
+      setUsers(formattedUsers);
+    } catch (error) {
+      console.error("Error loading users:", error);
       setUsers([]);
     }
   };
 
-  // ==============================
-  // LOAD APPOINTMENTS
-  // ==============================
-
   const loadAppointments = () => {
     try {
-      const savedBookings =
-        JSON.parse(
-          localStorage.getItem(
-            "advocaOneBookings"
-          ) || "[]"
-        ) || [];
+      const savedBookings = JSON.parse(
+        localStorage.getItem("advocaOneBookings") || "[]"
+      );
 
       if (!Array.isArray(savedBookings)) {
         setAppointments([]);
         return;
       }
 
-      const formattedAppointments =
-        savedBookings.map(
-          (booking, index) => ({
-            ...booking,
+      const formattedAppointments = savedBookings.map((booking, index) => ({
+        ...booking,
 
-            id:
-              booking.id ||
-              index + 1,
+        id: booking.id || `appointment-${index + 1}`,
 
-            client:
-              booking.client ||
-              booking.userName ||
-              booking.name ||
-              "Client",
+        client:
+          booking.client ||
+          booking.userName ||
+          booking.clientName ||
+          booking.name ||
+          "Client",
 
-            lawyer:
-              booking.lawyerName ||
-              booking.lawyer ||
-              "Lawyer",
+        clientEmail: booking.clientEmail || booking.userEmail || "",
 
-            date:
-              booking.date ||
-              booking.bookingDate ||
-              "",
+        lawyer:
+          booking.lawyerName ||
+          booking.lawyer ||
+          booking.lawyerName ||
+          "Lawyer",
 
-            time:
-              booking.time ||
-              booking.bookingTime ||
-              "",
+        lawyerEmail: booking.lawyerEmail || "",
 
-            type:
-              booking.type ||
-              booking.consultationType ||
-              booking.mode ||
-              "Online",
+        date: booking.date || booking.bookingDate || "",
 
-            status:
-              booking.status ||
-              "Pending",
-          })
-        );
+        time: booking.time || booking.bookingTime || "",
 
-      setAppointments(
-        formattedAppointments
-      );
+        type:
+          booking.type ||
+          booking.consultationType ||
+          booking.mode ||
+          "Online",
+
+        status: booking.status || "Pending",
+
+        fee: booking.fee || booking.amount || 0,
+      }));
+
+      setAppointments(formattedAppointments);
     } catch (error) {
-      console.error(
-        "Error loading appointments:",
-        error
-      );
-
+      console.error("Error loading appointments:", error);
       setAppointments([]);
     }
   };
-
-  // ==============================
-  // LOAD ALL DATA
-  // ==============================
 
   const loadAllData = () => {
     loadLawyers();
@@ -244,1080 +271,2124 @@ function AdminDashboard() {
   useEffect(() => {
     loadAllData();
 
-    window.addEventListener(
-      "storage",
-      loadAllData
-    );
+    const handleStorage = () => loadAllData();
+    const handleCustomUpdate = () => loadAllData();
 
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("focus", handleStorage);
     window.addEventListener(
-      "focus",
-      loadAllData
+      "advocaOneDataUpdated",
+      handleCustomUpdate
     );
 
     return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("focus", handleStorage);
       window.removeEventListener(
-        "storage",
-        loadAllData
-      );
-
-      window.removeEventListener(
-        "focus",
-        loadAllData
+        "advocaOneDataUpdated",
+        handleCustomUpdate
       );
     };
   }, []);
 
-  // ==============================
-  // UPDATE LAWYER STATUS
-  // ==============================
+  /* =========================================================
+     DATA UPDATE EVENT
+  ========================================================= */
 
-  const updateLawyerStatus = (
-    id,
-    status
-  ) => {
-    const updatedLawyers =
-      lawyers.map(
-        (lawyer) =>
-          String(lawyer.id) ===
-          String(id)
-            ? {
-                ...lawyer,
-                status,
-              }
-            : lawyer
+  const notifyDataUpdate = () => {
+    window.dispatchEvent(new Event("advocaOneDataUpdated"));
+  };
+
+  /* =========================================================
+     LAWYER ACTIONS
+  ========================================================= */
+
+  const updateLawyerStatus = (id, status) => {
+    try {
+      const updatedLawyers = lawyers.map((lawyer) =>
+        String(lawyer.id) === String(id)
+          ? {
+              ...lawyer,
+              status,
+            }
+          : lawyer
       );
 
-    setLawyers(
-      updatedLawyers
-    );
+      setLawyers(updatedLawyers);
 
-    localStorage.setItem(
-      "advocaOneAdminLawyers",
-      JSON.stringify(
-        updatedLawyers
-      )
-    );
+      localStorage.setItem(
+        "advocaOneAdminLawyers",
+        JSON.stringify(updatedLawyers)
+      );
 
-    // Update selected lawyer if open
-    if (
-      selectedLawyer &&
-      String(selectedLawyer.id) ===
-        String(id)
-    ) {
-      setSelectedLawyer({
-        ...selectedLawyer,
-        status,
-      });
+      /*
+        Also update lawyer account if the lawyer exists
+        inside advocaOneAccounts.
+      */
+
+      try {
+        const accounts = JSON.parse(
+          localStorage.getItem("advocaOneAccounts") || "[]"
+        );
+
+        const updatedAccounts = accounts.map((account) => {
+          const lawyer = updatedLawyers.find(
+            (item) =>
+              String(item.id) === String(account.id) ||
+              item.email?.toLowerCase() === account.email?.toLowerCase()
+          );
+
+          if (!lawyer) return account;
+
+          return {
+            ...account,
+            verificationStatus: status,
+            lawyerStatus: status,
+          };
+        });
+
+        localStorage.setItem(
+          "advocaOneAccounts",
+          JSON.stringify(updatedAccounts)
+        );
+      } catch (accountError) {
+        console.error(accountError);
+      }
+
+      const updatedSelected = updatedLawyers.find(
+        (lawyer) => String(lawyer.id) === String(id)
+      );
+
+      if (updatedSelected) {
+        setSelectedLawyer(updatedSelected);
+      }
+
+      notifyDataUpdate();
+    } catch (error) {
+      console.error("Error updating lawyer status:", error);
     }
   };
 
-  // ==============================
-  // UPDATE USER STATUS
-  // ==============================
-
-  const updateUserStatus = (
-    id
-  ) => {
-    const updatedUsers =
-      users.map(
-        (user) =>
-          String(user.id) ===
-          String(id)
-            ? {
-                ...user,
-                status:
-                  user.status ===
-                  "Active"
-                    ? "Inactive"
-                    : "Active",
-              }
-            : user
+  const toggleLawyerAccountStatus = (id) => {
+    try {
+      const updatedLawyers = lawyers.map((lawyer) =>
+        String(lawyer.id) === String(id)
+          ? {
+              ...lawyer,
+              accountStatus:
+                lawyer.accountStatus === "Inactive"
+                  ? "Active"
+                  : "Inactive",
+            }
+          : lawyer
       );
 
-    setUsers(
-      updatedUsers
+      setLawyers(updatedLawyers);
+
+      localStorage.setItem(
+        "advocaOneAdminLawyers",
+        JSON.stringify(updatedLawyers)
+      );
+
+      const updatedSelected = updatedLawyers.find(
+        (lawyer) => String(lawyer.id) === String(id)
+      );
+
+      if (updatedSelected) {
+        setSelectedLawyer(updatedSelected);
+      }
+
+      notifyDataUpdate();
+    } catch (error) {
+      console.error("Error toggling lawyer account:", error);
+    }
+  };
+
+  /* =========================================================
+     USER ACTIONS
+  ========================================================= */
+
+  const updateUserStatus = (id) => {
+    const targetUser = users.find(
+      (user) => String(user.id) === String(id)
     );
 
-    // Update account status
-    try {
-      const accounts =
-        JSON.parse(
-          localStorage.getItem(
-            "advocaOneAccounts"
-          ) || "[]"
-        ) || [];
+    if (!targetUser) return;
 
-      const updatedAccounts =
-        accounts.map(
-          (account) => {
-            const matchingUser =
-              updatedUsers.find(
-                (user) =>
-                  user.email?.toLowerCase() ===
-                  account.email?.toLowerCase()
-              );
+    /*
+      Prevent accidental admin self-deactivation.
+    */
 
-            return matchingUser
-              ? {
-                  ...account,
-                  status:
-                    matchingUser.status,
-                }
-              : account;
+    const loggedInUser = JSON.parse(
+      localStorage.getItem("advocaOneLoggedInUser") || "null"
+    );
+
+    if (
+      loggedInUser &&
+      loggedInUser.email &&
+      targetUser.email &&
+      loggedInUser.email.toLowerCase() ===
+        targetUser.email.toLowerCase() &&
+      targetUser.role === "Admin"
+    ) {
+      alert("Admin account cannot be deactivated.");
+      return;
+    }
+
+    const updatedUsers = users.map((user) =>
+      String(user.id) === String(id)
+        ? {
+            ...user,
+            status:
+              user.status === "Active"
+                ? "Inactive"
+                : "Active",
           }
+        : user
+    );
+
+    setUsers(updatedUsers);
+
+    try {
+      const accounts = JSON.parse(
+        localStorage.getItem("advocaOneAccounts") || "[]"
+      );
+
+      const updatedAccounts = accounts.map((account) => {
+        const matchingUser = updatedUsers.find(
+          (user) =>
+            String(user.id) === String(account.id) ||
+            user.email?.toLowerCase() ===
+              account.email?.toLowerCase()
         );
+
+        return matchingUser
+          ? {
+              ...account,
+              status: matchingUser.status,
+            }
+          : account;
+      });
 
       localStorage.setItem(
         "advocaOneAccounts",
-        JSON.stringify(
-          updatedAccounts
-        )
+        JSON.stringify(updatedAccounts)
       );
+
+      notifyDataUpdate();
     } catch (error) {
-      console.error(
-        "Error updating account:",
-        error
-      );
+      console.error("Error updating user:", error);
     }
   };
 
-  // ==============================
-  // UPDATE APPOINTMENT STATUS
-  // ==============================
+  /* =========================================================
+     APPOINTMENT ACTIONS
+  ========================================================= */
 
-  const updateAppointmentStatus = (
-    id,
-    status
-  ) => {
+  const updateAppointmentStatus = (id, status) => {
     try {
-      const savedBookings =
-        JSON.parse(
-          localStorage.getItem(
-            "advocaOneBookings"
-          ) || "[]"
-        ) || [];
+      const savedBookings = JSON.parse(
+        localStorage.getItem("advocaOneBookings") || "[]"
+      );
 
-      if (!Array.isArray(savedBookings)) {
-        return;
-      }
+      if (!Array.isArray(savedBookings)) return;
 
-      const updatedBookings =
-        savedBookings.map(
-          (booking) =>
-            String(booking.id) ===
-            String(id)
-              ? {
-                  ...booking,
-                  status,
-                }
-              : booking
-        );
+      const updatedBookings = savedBookings.map(
+        (booking, index) => {
+          const bookingId =
+            booking.id || `appointment-${index + 1}`;
+
+          return String(bookingId) === String(id)
+            ? {
+                ...booking,
+                id: bookingId,
+                status,
+              }
+            : booking;
+        }
+      );
 
       localStorage.setItem(
         "advocaOneBookings",
-        JSON.stringify(
-          updatedBookings
-        )
+        JSON.stringify(updatedBookings)
       );
 
-      // Reload from storage
       loadAppointments();
+
+      if (
+        selectedAppointment &&
+        String(selectedAppointment.id) === String(id)
+      ) {
+        setSelectedAppointment({
+          ...selectedAppointment,
+          status,
+        });
+      }
+
+      notifyDataUpdate();
     } catch (error) {
-      console.error(
-        "Error updating appointment:",
-        error
-      );
+      console.error("Error updating appointment:", error);
     }
   };
 
-  // ==============================
-  // STATISTICS
-  // ==============================
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
 
-  const approvedLawyers =
-    lawyers.filter(
-      (lawyer) =>
-        lawyer.status ===
-        "Approved"
-    ).length;
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("advocaOneLoggedInUser");
 
-  const pendingLawyers =
-    lawyers.filter(
-      (lawyer) =>
-        lawyer.status ===
-        "Pending"
-    ).length;
+    navigate("/login");
+  };
 
-  const activeUsers =
-    users.filter(
-      (user) =>
-        user.status ===
-        "Active"
-    ).length;
+  /* =========================================================
+     FILTER DATA
+  ========================================================= */
+
+  const practiceAreas = useMemo(
+    () => [
+      ...new Set(
+        lawyers
+          .map((lawyer) => lawyer.specialization)
+          .filter(Boolean)
+      ),
+    ],
+    [lawyers]
+  );
+
+  const cities = useMemo(
+    () => [
+      ...new Set(
+        lawyers
+          .map((lawyer) => lawyer.city)
+          .filter(Boolean)
+      ),
+    ],
+    [lawyers]
+  );
+
+  const filteredLawyers = useMemo(() => {
+    return lawyers.filter((lawyer) => {
+      const searchText = lawyerSearch
+        .toLowerCase()
+        .trim();
+
+      const matchesSearch =
+        !searchText ||
+        lawyer.name?.toLowerCase().includes(searchText) ||
+        lawyer.email?.toLowerCase().includes(searchText) ||
+        lawyer.phone?.toLowerCase().includes(searchText) ||
+        lawyer.city?.toLowerCase().includes(searchText) ||
+        lawyer.specialization
+          ?.toLowerCase()
+          .includes(searchText);
+
+      const matchesStatus =
+        lawyerStatusFilter === "All" ||
+        lawyer.status === lawyerStatusFilter;
+
+      const matchesAccount =
+        lawyerAccountFilter === "All" ||
+        (lawyer.accountStatus || "Active") ===
+          lawyerAccountFilter;
+
+      const matchesPractice =
+        lawyerPracticeFilter === "All" ||
+        lawyer.specialization === lawyerPracticeFilter;
+
+      const matchesCity =
+        lawyerCityFilter === "All" ||
+        lawyer.city === lawyerCityFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesAccount &&
+        matchesPractice &&
+        matchesCity
+      );
+    });
+  }, [
+    lawyers,
+    lawyerSearch,
+    lawyerStatusFilter,
+    lawyerAccountFilter,
+    lawyerPracticeFilter,
+    lawyerCityFilter,
+  ]);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      const searchText = userSearch
+        .toLowerCase()
+        .trim();
+
+      const matchesSearch =
+        !searchText ||
+        user.name?.toLowerCase().includes(searchText) ||
+        user.email?.toLowerCase().includes(searchText) ||
+        user.phone?.toLowerCase().includes(searchText);
+
+      const matchesRole =
+        userRoleFilter === "All" ||
+        user.role === userRoleFilter;
+
+      const matchesStatus =
+        userStatusFilter === "All" ||
+        user.status === userStatusFilter;
+
+      return (
+        matchesSearch &&
+        matchesRole &&
+        matchesStatus
+      );
+    });
+  }, [
+    users,
+    userSearch,
+    userRoleFilter,
+    userStatusFilter,
+  ]);
+
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter((appointment) => {
+      const searchText = appointmentSearch
+        .toLowerCase()
+        .trim();
+
+      const matchesSearch =
+        !searchText ||
+        appointment.client
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.lawyer
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.date
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.time
+          ?.toLowerCase()
+          .includes(searchText) ||
+        appointment.type
+          ?.toLowerCase()
+          .includes(searchText);
+
+      const matchesStatus =
+        appointmentStatusFilter === "All" ||
+        appointment.status === appointmentStatusFilter;
+
+      const matchesType =
+        appointmentTypeFilter === "All" ||
+        appointment.type === appointmentTypeFilter;
+
+      const matchesDate =
+        appointmentDateFilter === "" ||
+        appointment.date === appointmentDateFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesType &&
+        matchesDate
+      );
+    });
+  }, [
+    appointments,
+    appointmentSearch,
+    appointmentStatusFilter,
+    appointmentTypeFilter,
+    appointmentDateFilter,
+  ]);
+
+  /* =========================================================
+     STATISTICS
+  ========================================================= */
+
+  const totalLawyers = lawyers.length;
+
+  const pendingLawyers = lawyers.filter(
+    (lawyer) => lawyer.status === "Pending"
+  ).length;
+
+  const approvedLawyers = lawyers.filter(
+    (lawyer) => lawyer.status === "Approved"
+  ).length;
+
+  const rejectedLawyers = lawyers.filter(
+    (lawyer) => lawyer.status === "Rejected"
+  ).length;
+
+  const activeLawyers = lawyers.filter(
+    (lawyer) =>
+      lawyer.status === "Approved" &&
+      lawyer.accountStatus !== "Inactive"
+  ).length;
+
+  const inactiveLawyers = lawyers.filter(
+    (lawyer) => lawyer.accountStatus === "Inactive"
+  ).length;
+
+  const totalUsers = users.length;
+
+  const activeUsers = users.filter(
+    (user) => user.status === "Active"
+  ).length;
+
+  const inactiveUsers = users.filter(
+    (user) => user.status === "Inactive"
+  ).length;
+
+  const totalAppointments = appointments.length;
+
+  const pendingAppointments = appointments.filter(
+    (appointment) => appointment.status === "Pending"
+  ).length;
+
+  const confirmedAppointments = appointments.filter(
+    (appointment) => appointment.status === "Confirmed"
+  ).length;
+
+  const completedAppointments = appointments.filter(
+    (appointment) => appointment.status === "Completed"
+  ).length;
+
+  const cancelledAppointments = appointments.filter(
+    (appointment) => appointment.status === "Cancelled"
+  ).length;
+
+  const rejectedAppointments = appointments.filter(
+    (appointment) => appointment.status === "Rejected"
+  ).length;
+
+  const totalEarnings = appointments
+    .filter(
+      (appointment) =>
+        appointment.status === "Confirmed" ||
+        appointment.status === "Completed"
+    )
+    .reduce(
+      (total, appointment) =>
+        total + Number(appointment.fee || 0),
+      0
+    );
+
+  /* =========================================================
+     CLEAR FILTERS
+  ========================================================= */
+
+  const clearLawyerFilters = () => {
+    setLawyerSearch("");
+    setLawyerStatusFilter("All");
+    setLawyerAccountFilter("All");
+    setLawyerPracticeFilter("All");
+    setLawyerCityFilter("All");
+  };
+
+  const clearUserFilters = () => {
+    setUserSearch("");
+    setUserRoleFilter("All");
+    setUserStatusFilter("All");
+  };
+
+  const clearAppointmentFilters = () => {
+    setAppointmentSearch("");
+    setAppointmentStatusFilter("All");
+    setAppointmentTypeFilter("All");
+    setAppointmentDateFilter("");
+  };
+
+  /* =========================================================
+     OPEN DETAILS
+  ========================================================= */
+
+  const openLawyerDetails = (lawyer) => {
+    setSelectedLawyer(lawyer);
+    setShowLawyerDetails(true);
+    setShowDocuments(false);
+  };
+
+  const openDocuments = (lawyer) => {
+    setSelectedLawyer(lawyer);
+    setShowDocuments(true);
+    setShowLawyerDetails(false);
+  };
+
+  const openUserDetails = (user) => {
+    setSelectedUser(user);
+    setShowUserDetails(true);
+  };
+
+  const openAppointmentDetails = (appointment) => {
+    setSelectedAppointment(appointment);
+    setShowAppointmentDetails(true);
+  };
+
+  /* =========================================================
+     STATUS BADGES
+  ========================================================= */
+
+  const getStatusClass = (status) => {
+    const normalized = status
+      ?.toLowerCase()
+      .replace(/\s+/g, "-");
+
+    return `admin-status-badge admin-status-${normalized}`;
+  };
+
+  /* =========================================================
+     SIDEBAR
+  ========================================================= */
+
+  const menuItems = [
+    {
+      id: "overview",
+      icon: "📊",
+      label: "Dashboard",
+    },
+    {
+      id: "lawyers",
+      icon: "⚖️",
+      label: "Lawyers",
+      count: totalLawyers,
+    },
+    {
+      id: "users",
+      icon: "👥",
+      label: "Users",
+      count: totalUsers,
+    },
+    {
+      id: "appointments",
+      icon: "📅",
+      label: "Appointments",
+      count: totalAppointments,
+    },
+  ];
+
+  /* =========================================================
+     RENDER
+  ========================================================= */
 
   return (
-    <div className="admin-dashboard-page">
+    <div className="admin-layout">
 
-      {/* ==============================
-          NAVBAR
-      ============================== */}
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
 
-      <nav className="navbar navbar-dark bg-dark">
+      <aside className="admin-sidebar">
 
-        <div className="container">
+        <div className="admin-logo">
+          <div className="admin-logo-icon">
+            ⚖️
+          </div>
 
-          <Link
-            to="/"
-            className="navbar-brand fw-bold"
+          <div>
+            <h2>AdvocaOne</h2>
+            <span>ADMIN PANEL</span>
+          </div>
+        </div>
+
+        <div className="admin-sidebar-label">
+          MAIN MENU
+        </div>
+
+        <nav className="admin-sidebar-menu">
+
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              className={`admin-sidebar-item ${
+                activeSection === item.id
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setActiveSection(item.id)
+              }
+            >
+              <span className="admin-sidebar-icon">
+                {item.icon}
+              </span>
+
+              <span className="admin-sidebar-text">
+                {item.label}
+              </span>
+
+              {item.count !== undefined && (
+                <span className="admin-sidebar-count">
+                  {item.count}
+                </span>
+              )}
+            </button>
+          ))}
+
+        </nav>
+
+        <div className="admin-sidebar-bottom">
+
+          <button
+            className="admin-sidebar-item"
+            onClick={() => navigate("/")}
           >
-            ⚖️ AdvocaOne Admin
-          </Link>
+            <span className="admin-sidebar-icon">
+              🏠
+            </span>
 
-          <Link
-            to="/"
-            className="btn btn-outline-light"
+            <span className="admin-sidebar-text">
+              Main Website
+            </span>
+          </button>
+
+          <button
+            className="admin-sidebar-item admin-logout-item"
+            onClick={handleLogout}
           >
-            Logout
-          </Link>
+            <span className="admin-sidebar-icon">
+              🚪
+            </span>
+
+            <span className="admin-sidebar-text">
+              Logout
+            </span>
+          </button>
 
         </div>
 
-      </nav>
+      </aside>
 
-      <div className="container py-5">
+      {/* =====================================================
+          MAIN CONTENT
+      ===================================================== */}
 
-        {/* ==============================
-            HEADER
-        ============================== */}
+      <main className="admin-main-content">
 
-        <div className="mb-4">
+        {/* TOP BAR */}
 
-          <h1 className="fw-bold">
-            Admin Dashboard
-          </h1>
+        <header className="admin-topbar">
 
-          <p className="text-muted">
-            Manage lawyers, users and
-            appointments.
-          </p>
-
-        </div>
-
-        {/* ==============================
-            STATISTICS
-        ============================== */}
-
-        <div className="row g-4 mb-5">
-
-          <div className="col-md-3">
-
-            <div className="card shadow-sm p-4 admin-stat-card">
-
-              <h6 className="text-muted">
-                Total Lawyers
-              </h6>
-
-              <h2 className="fw-bold">
-                {lawyers.length}
-              </h2>
-
-              <span>
-                👨‍⚖️ Registered lawyers
-              </span>
-
+          <div>
+            <div className="admin-breadcrumb">
+              Admin /{" "}
+              {activeSection === "overview"
+                ? "Dashboard"
+                : activeSection.charAt(0).toUpperCase() +
+                  activeSection.slice(1)}
             </div>
-
           </div>
 
-          <div className="col-md-3">
+          <div className="admin-topbar-right">
 
-            <div className="card shadow-sm p-4 admin-stat-card">
+            <button
+              className="admin-icon-button"
+              onClick={loadAllData}
+              title="Refresh data"
+            >
+              🔄
+            </button>
 
-              <h6 className="text-muted">
-                Pending Verification
-              </h6>
+            <div className="admin-profile">
 
-              <h2 className="fw-bold">
-                {pendingLawyers}
-              </h2>
-
-              <span>
-                ⏳ Need review
-              </span>
-
-            </div>
-
-          </div>
-
-          <div className="col-md-3">
-
-            <div className="card shadow-sm p-4 admin-stat-card">
-
-              <h6 className="text-muted">
-                Approved Lawyers
-              </h6>
-
-              <h2 className="fw-bold">
-                {approvedLawyers}
-              </h2>
-
-              <span>
-                ✅ Verified profiles
-              </span>
-
-            </div>
-
-          </div>
-
-          <div className="col-md-3">
-
-            <div className="card shadow-sm p-4 admin-stat-card">
-
-              <h6 className="text-muted">
-                Active Users
-              </h6>
-
-              <h2 className="fw-bold">
-                {activeUsers}
-              </h2>
-
-              <span>
-                👥 Active accounts
-              </span>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        {/* ==============================
-            SECTION TABS
-        ============================== */}
-
-        <div className="card shadow-sm mb-4">
-
-          <div className="card-body">
-
-            <div className="row g-2">
-
-              <div className="col-md-4">
-
-                <button
-                  className={
-                    activeSection ===
-                    "lawyers"
-                      ? "btn btn-primary w-100"
-                      : "btn btn-outline-primary w-100"
-                  }
-                  onClick={() =>
-                    setActiveSection(
-                      "lawyers"
-                    )
-                  }
-                >
-                  👨‍⚖️ Lawyer Verification
-                </button>
-
+              <div className="admin-profile-avatar">
+                A
               </div>
 
-              <div className="col-md-4">
-
-                <button
-                  className={
-                    activeSection ===
-                    "users"
-                      ? "btn btn-primary w-100"
-                      : "btn btn-outline-primary w-100"
-                  }
-                  onClick={() =>
-                    setActiveSection(
-                      "users"
-                    )
-                  }
-                >
-                  👥 User Management
-                </button>
-
-              </div>
-
-              <div className="col-md-4">
-
-                <button
-                  className={
-                    activeSection ===
-                    "appointments"
-                      ? "btn btn-primary w-100"
-                      : "btn btn-outline-primary w-100"
-                  }
-                  onClick={() =>
-                    setActiveSection(
-                      "appointments"
-                    )
-                  }
-                >
-                  📅 Appointments
-                </button>
-
+              <div>
+                <strong>Administrator</strong>
+                <span>Super Admin</span>
               </div>
 
             </div>
 
           </div>
 
-        </div>
+        </header>
 
-        {/* ==============================
-            LAWYERS
-        ============================== */}
+        <div className="admin-content">
 
-        {activeSection ===
-          "lawyers" && (
+          {/* =================================================
+              DASHBOARD OVERVIEW
+          ================================================= */}
 
-          <div className="card shadow-sm p-4">
+          {activeSection === "overview" && (
+            <>
+              <div className="admin-page-header">
 
-            <div className="mb-4">
+                <div>
+                  <span className="admin-eyebrow">
+                    CONTROL CENTER
+                  </span>
 
-              <h3 className="fw-bold">
-                👨‍⚖️ Lawyer Verification
-              </h3>
+                  <h1>Admin Dashboard</h1>
 
-              <p className="text-muted">
-                Review and manage registered
-                lawyers.
-              </p>
+                  <p>
+                    Monitor lawyers, users and
+                    appointments from one place.
+                  </p>
+                </div>
 
-            </div>
+                <button
+                  className="admin-primary-button"
+                  onClick={loadAllData}
+                >
+                  🔄 Refresh Dashboard
+                </button>
 
-            <div className="table-responsive">
+              </div>
 
-              <table className="table align-middle">
+              {/* KPI CARDS */}
 
-                <thead>
+              <div className="admin-kpi-grid">
 
-                  <tr>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    ⚖️
+                  </div>
 
-                    <th>
-                      Lawyer
-                    </th>
+                  <div>
+                    <span>Total Lawyers</span>
+                    <strong>{totalLawyers}</strong>
+                    <small>
+                      {pendingLawyers} pending verification
+                    </small>
+                  </div>
+                </div>
 
-                    <th>
-                      Practice Area
-                    </th>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    ⏳
+                  </div>
 
-                    <th>
-                      City
-                    </th>
+                  <div>
+                    <span>Pending Verification</span>
+                    <strong>{pendingLawyers}</strong>
+                    <small>
+                      Need admin review
+                    </small>
+                  </div>
+                </div>
 
-                    <th>
-                      Experience
-                    </th>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    ✅
+                  </div>
 
-                    <th>
-                      Fee
-                    </th>
+                  <div>
+                    <span>Approved Lawyers</span>
+                    <strong>{approvedLawyers}</strong>
+                    <small>
+                      Verified lawyers
+                    </small>
+                  </div>
+                </div>
 
-                    <th>
-                      Status
-                    </th>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    👥
+                  </div>
 
-                    <th>
-                      Action
-                    </th>
+                  <div>
+                    <span>Total Users</span>
+                    <strong>{totalUsers}</strong>
+                    <small>
+                      {activeUsers} active users
+                    </small>
+                  </div>
+                </div>
 
-                  </tr>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    🟢
+                  </div>
 
-                </thead>
+                  <div>
+                    <span>Active Lawyers</span>
+                    <strong>{activeLawyers}</strong>
+                    <small>
+                      Currently available accounts
+                    </small>
+                  </div>
+                </div>
 
-                <tbody>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    📅
+                  </div>
 
-                  {lawyers.length >
-                  0 ? (
+                  <div>
+                    <span>Total Appointments</span>
+                    <strong>{totalAppointments}</strong>
+                    <small>
+                      {pendingAppointments} pending
+                    </small>
+                  </div>
+                </div>
 
-                    lawyers.map(
-                      (lawyer) => (
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    💰
+                  </div>
 
-                        <tr
-                          key={
-                            lawyer.id
-                          }
-                        >
+                  <div>
+                    <span>Estimated Earnings</span>
+                    <strong>
+                      ₹{totalEarnings.toLocaleString("en-IN")}
+                    </strong>
+                    <small>
+                      Confirmed + completed
+                    </small>
+                  </div>
+                </div>
 
-                          <td>
-                            <strong>
-                              {
-                                lawyer.name
-                              }
-                            </strong>
-                          </td>
+                <div className="admin-kpi-card">
+                  <div className="admin-kpi-icon">
+                    ❌
+                  </div>
 
-                          <td>
-                            {
-                              lawyer.specialization ||
-                              "Not Selected"
-                            }
-                          </td>
+                  <div>
+                    <span>Rejected Lawyers</span>
+                    <strong>{rejectedLawyers}</strong>
+                    <small>
+                      Verification rejected
+                    </small>
+                  </div>
+                </div>
 
-                          <td>
-                            {
-                              lawyer.city ||
-                              "Not Selected"
-                            }
-                          </td>
+              </div>
 
-                          <td>
-                            {
-                              lawyer.experience ||
-                              0
-                            }{" "}
-                            Years
-                          </td>
+              {/* DASHBOARD GRID */}
 
-                          <td>
-                            ₹
-                            {
-                              lawyer.fee ||
-                              0
-                            }
-                          </td>
+              <div className="admin-dashboard-grid">
 
-                          <td>
+                {/* APPOINTMENT STATUS */}
 
-                            <span
-                              className={
-                                lawyer.status ===
-                                "Approved"
-                                  ? "badge bg-success"
-                                  : lawyer.status ===
-                                    "Rejected"
-                                  ? "badge bg-danger"
-                                  : "badge bg-warning text-dark"
-                              }
-                            >
-                              {
-                                lawyer.status
-                              }
-                            </span>
+                <div className="admin-card">
 
-                          </td>
+                  <div className="admin-card-header">
 
-                          <td>
+                    <div>
+                      <h3>Appointment Overview</h3>
+                      <p>
+                        Current appointment status
+                      </p>
+                    </div>
 
-                            <div className="d-flex gap-2 flex-wrap">
+                    <button
+                      className="admin-link-button"
+                      onClick={() =>
+                        setActiveSection("appointments")
+                      }
+                    >
+                      View All →
+                    </button>
 
-                              <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() =>
-                                  setSelectedLawyer(
-                                    lawyer
-                                  )
-                                }
-                              >
-                                👁️ View
-                              </button>
+                  </div>
 
-                              {lawyer.status !==
-                                "Approved" && (
+                  <div className="admin-status-list">
 
-                                <button
-                                  className="btn btn-sm btn-success"
-                                  onClick={() =>
-                                    updateLawyerStatus(
-                                      lawyer.id,
-                                      "Approved"
-                                    )
-                                  }
-                                >
-                                  ✓ Approve
-                                </button>
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot pending-dot" />
+                        Pending
+                      </span>
+                      <strong>
+                        {pendingAppointments}
+                      </strong>
+                    </div>
 
-                              )}
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot confirmed-dot" />
+                        Confirmed
+                      </span>
+                      <strong>
+                        {confirmedAppointments}
+                      </strong>
+                    </div>
 
-                              {lawyer.status !==
-                                "Rejected" && (
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot completed-dot" />
+                        Completed
+                      </span>
+                      <strong>
+                        {completedAppointments}
+                      </strong>
+                    </div>
 
-                                <button
-                                  className="btn btn-sm btn-danger"
-                                  onClick={() =>
-                                    updateLawyerStatus(
-                                      lawyer.id,
-                                      "Rejected"
-                                    )
-                                  }
-                                >
-                                  ✕ Reject
-                                </button>
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot cancelled-dot" />
+                        Cancelled
+                      </span>
+                      <strong>
+                        {cancelledAppointments}
+                      </strong>
+                    </div>
 
-                              )}
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot rejected-dot" />
+                        Rejected
+                      </span>
+                      <strong>
+                        {rejectedAppointments}
+                      </strong>
+                    </div>
 
+                  </div>
+
+                </div>
+
+                {/* LAWYER STATUS */}
+
+                <div className="admin-card">
+
+                  <div className="admin-card-header">
+
+                    <div>
+                      <h3>Lawyer Verification</h3>
+                      <p>
+                        Verification summary
+                      </p>
+                    </div>
+
+                    <button
+                      className="admin-link-button"
+                      onClick={() =>
+                        setActiveSection("lawyers")
+                      }
+                    >
+                      Manage →
+                    </button>
+
+                  </div>
+
+                  <div className="admin-status-list">
+
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot pending-dot" />
+                        Pending
+                      </span>
+                      <strong>
+                        {pendingLawyers}
+                      </strong>
+                    </div>
+
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot confirmed-dot" />
+                        Approved
+                      </span>
+                      <strong>
+                        {approvedLawyers}
+                      </strong>
+                    </div>
+
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot rejected-dot" />
+                        Rejected
+                      </span>
+                      <strong>
+                        {rejectedLawyers}
+                      </strong>
+                    </div>
+
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot completed-dot" />
+                        Active
+                      </span>
+                      <strong>
+                        {activeLawyers}
+                      </strong>
+                    </div>
+
+                    <div className="admin-status-row">
+                      <span>
+                        <i className="status-dot cancelled-dot" />
+                        Inactive
+                      </span>
+                      <strong>
+                        {inactiveLawyers}
+                      </strong>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* QUICK ACTIONS */}
+
+              <div className="admin-card">
+
+                <div className="admin-card-header">
+
+                  <div>
+                    <h3>Quick Actions</h3>
+                    <p>
+                      Frequently used administration tools
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="admin-quick-actions">
+
+                  <button
+                    onClick={() =>
+                      setActiveSection("lawyers")
+                    }
+                  >
+                    <span>⚖️</span>
+                    <strong>Manage Lawyers</strong>
+                    <small>
+                      Verify and manage lawyers
+                    </small>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setActiveSection("users")
+                    }
+                  >
+                    <span>👥</span>
+                    <strong>Manage Users</strong>
+                    <small>
+                      Manage client accounts
+                    </small>
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setActiveSection("appointments")
+                    }
+                  >
+                    <span>📅</span>
+                    <strong>Appointments</strong>
+                    <small>
+                      Manage booking requests
+                    </small>
+                  </button>
+
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {/* =================================================
+              LAWYER MANAGEMENT
+          ================================================= */}
+
+          {activeSection === "lawyers" && (
+            <>
+              <div className="admin-page-header">
+
+                <div>
+                  <span className="admin-eyebrow">
+                    LAWYER MANAGEMENT
+                  </span>
+
+                  <h1>Lawyers</h1>
+
+                  <p>
+                    Verify, activate and manage lawyer
+                    accounts.
+                  </p>
+                </div>
+
+                <div className="admin-header-stat">
+                  <strong>{filteredLawyers.length}</strong>
+                  <span>Showing Lawyers</span>
+                </div>
+
+              </div>
+
+              {/* FILTER CARD */}
+
+              <div className="admin-filter-card">
+
+                <div className="admin-filter-grid">
+
+                  <div className="admin-input-group admin-search-input">
+                    <label>Search</label>
+
+                    <input
+                      type="text"
+                      placeholder="Name, email, phone, city..."
+                      value={lawyerSearch}
+                      onChange={(e) =>
+                        setLawyerSearch(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Verification</label>
+
+                    <select
+                      value={lawyerStatusFilter}
+                      onChange={(e) =>
+                        setLawyerStatusFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">All Status</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Account</label>
+
+                    <select
+                      value={lawyerAccountFilter}
+                      onChange={(e) =>
+                        setLawyerAccountFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">All Accounts</option>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">
+                        Inactive
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Practice Area</label>
+
+                    <select
+                      value={lawyerPracticeFilter}
+                      onChange={(e) =>
+                        setLawyerPracticeFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">
+                        All Practice Areas
+                      </option>
+
+                      {practiceAreas.map((area) => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>City</label>
+
+                    <select
+                      value={lawyerCityFilter}
+                      onChange={(e) =>
+                        setLawyerCityFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">
+                        All Cities
+                      </option>
+
+                      {cities.map((city) => (
+                        <option key={city} value={city}>
+                          {city}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="admin-filter-button-wrapper">
+
+                    <button
+                      className="admin-secondary-button"
+                      onClick={clearLawyerFilters}
+                    >
+                      ✕ Clear Filters
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* LAWYER TABLE */}
+
+              <div className="admin-table-card">
+
+                <div className="admin-table-header">
+
+                  <div>
+                    <h3>Lawyer Directory</h3>
+                    <p>
+                      {filteredLawyers.length} lawyer
+                      {filteredLawyers.length !== 1
+                        ? "s"
+                        : ""}{" "}
+                      found
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="admin-table-wrapper">
+
+                  <table className="admin-table">
+
+                    <thead>
+                      <tr>
+                        <th>Lawyer</th>
+                        <th>Practice Area</th>
+                        <th>City</th>
+                        <th>Experience</th>
+                        <th>Fee</th>
+                        <th>Verification</th>
+                        <th>Account</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+
+                      {filteredLawyers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="8"
+                            className="admin-empty-state"
+                          >
+                            <div>
+                              <span>🔎</span>
+                              <h3>No lawyers found</h3>
+                              <p>
+                                Try changing your filters.
+                              </p>
                             </div>
-
                           </td>
-
                         </tr>
-
-                      )
-                    )
-
-                  ) : (
-
-                    <tr>
-
-                      <td
-                        colSpan="7"
-                        className="text-center text-muted"
-                      >
-                        No lawyers registered.
-                      </td>
-
-                    </tr>
-
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-        )}
-
-        {/* ==============================
-            USERS
-        ============================== */}
-
-        {activeSection ===
-          "users" && (
-
-          <div className="card shadow-sm p-4">
-
-            <div className="mb-4">
-
-              <h3 className="fw-bold">
-                👥 User Management
-              </h3>
-
-              <p className="text-muted">
-                Manage client and lawyer
-                accounts.
-              </p>
-
-            </div>
-
-            <div className="table-responsive">
-
-              <table className="table align-middle">
-
-                <thead>
-
-                  <tr>
-
-                    <th>
-                      Name
-                    </th>
-
-                    <th>
-                      Email
-                    </th>
-
-                    <th>
-                      Role
-                    </th>
-
-                    <th>
-                      Status
-                    </th>
-
-                    <th>
-                      Action
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {users.length >
-                  0 ? (
-
-                    users.map(
-                      (user) => (
-
-                        <tr
-                          key={
-                            user.id
-                          }
-                        >
-
-                          <td>
-                            <strong>
-                              {
-                                user.name
-                              }
-                            </strong>
-                          </td>
-
-                          <td>
-                            {
-                              user.email
-                            }
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={
-                                user.role ===
-                                "Lawyer"
-                                  ? "badge bg-primary"
-                                  : "badge bg-secondary"
-                              }
-                            >
-                              {
-                                user.role
-                              }
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={
-                                user.status ===
-                                "Active"
-                                  ? "badge bg-success"
-                                  : "badge bg-danger"
-                              }
-                            >
-                              {
-                                user.status
-                              }
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            <button
-                              className={
-                                user.status ===
-                                "Active"
-                                  ? "btn btn-sm btn-outline-danger"
-                                  : "btn btn-sm btn-outline-success"
-                              }
-                              onClick={() =>
-                                updateUserStatus(
-                                  user.id
-                                )
-                              }
-                            >
-                              {user.status ===
-                              "Active"
-                                ? "Deactivate"
-                                : "Activate"}
-                            </button>
-
-                          </td>
-
-                        </tr>
-
-                      )
-                    )
-
-                  ) : (
-
-                    <tr>
-
-                      <td
-                        colSpan="5"
-                        className="text-center text-muted"
-                      >
-                        No registered users yet.
-                      </td>
-
-                    </tr>
-
-                  )}
-
-                </tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-        )}
-
-        {/* ==============================
-            APPOINTMENTS
-        ============================== */}
-
-        {activeSection ===
-          "appointments" && (
-
-          <div className="card shadow-sm p-4">
-
-            <div className="mb-4">
-
-              <h3 className="fw-bold">
-                📅 Appointment Management
-              </h3>
-
-              <p className="text-muted">
-                Monitor all platform
-                consultations.
-              </p>
-
-            </div>
-
-            <div className="table-responsive">
-
-              <table className="table align-middle">
-
-                <thead>
-
-                  <tr>
-
-                    <th>
-                      Client
-                    </th>
-
-                    <th>
-                      Lawyer
-                    </th>
-
-                    <th>
-                      Date
-                    </th>
-
-                    <th>
-                      Time
-                    </th>
-
-                    <th>
-                      Type
-                    </th>
-
-                    <th>
-                      Status
-                    </th>
-
-                    <th>
-                      Action
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {appointments.length >
-                  0 ? (
-
-                    appointments.map(
-                      (appointment) => (
-
-                        <tr
-                          key={
-                            appointment.id
-                          }
-                        >
-
-                          <td>
-                            <strong>
-                              {
-                                appointment.client
-                              }
-                            </strong>
-                          </td>
-
-                          <td>
-                            {
-                              appointment.lawyer
-                            }
-                          </td>
-
-                          <td>
-                            {
-                              appointment.date
-                            }
-                          </td>
-
-                          <td>
-                            {
-                              appointment.time
-                            }
-                          </td>
-
-                          <td>
-                            {
-                              appointment.type
-                            }
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={
-                                appointment.status ===
-                                "Confirmed"
-                                  ? "badge bg-success"
-                                  : appointment.status ===
-                                    "Completed"
-                                  ? "badge bg-primary"
-                                  : appointment.status ===
-                                    "Cancelled"
-                                  ? "badge bg-danger"
-                                  : appointment.status ===
-                                    "Rejected"
-                                  ? "badge bg-danger"
-                                  : "badge bg-warning text-dark"
-                              }
-                            >
-                              {
-                                appointment.status
-                              }
-                            </span>
-
-                          </td>
-
-                          <td>
-
-                            {appointment.status ===
-                              "Pending" && (
-
-                              <div className="d-flex gap-2">
+                      ) : (
+                        filteredLawyers.map((lawyer) => (
+                          <tr key={lawyer.id}>
+
+                            <td>
+
+                              <div className="admin-person">
+
+                                <div className="admin-person-avatar">
+                                  {lawyer.name
+                                    ?.replace("Adv. ", "")
+                                    .charAt(0)
+                                    .toUpperCase()}
+                                </div>
+
+                                <div>
+                                  <strong>
+                                    {lawyer.name}
+                                  </strong>
+
+                                  <span>
+                                    {lawyer.email ||
+                                      "No email"}
+                                  </span>
+                                </div>
+
+                              </div>
+
+                            </td>
+
+                            <td>
+                              {lawyer.specialization ||
+                                "Not Selected"}
+                            </td>
+
+                            <td>
+                              {lawyer.city ||
+                                "Not Selected"}
+                            </td>
+
+                            <td>
+                              {lawyer.experience
+                                ? `${lawyer.experience} yrs`
+                                : "—"}
+                            </td>
+
+                            <td>
+                              ₹
+                              {Number(
+                                lawyer.fee || 0
+                              ).toLocaleString("en-IN")}
+                            </td>
+
+                            <td>
+                              <span
+                                className={getStatusClass(
+                                  lawyer.status
+                                )}
+                              >
+                                {lawyer.status}
+                              </span>
+                            </td>
+
+                            <td>
+                              <span
+                                className={getStatusClass(
+                                  lawyer.accountStatus ||
+                                    "Active"
+                                )}
+                              >
+                                {lawyer.accountStatus ||
+                                  "Active"}
+                              </span>
+                            </td>
+
+                            <td>
+
+                              <div className="admin-actions">
 
                                 <button
-                                  className="btn btn-sm btn-success"
+                                  className="admin-action-button view"
                                   onClick={() =>
-                                    updateAppointmentStatus(
-                                      appointment.id,
-                                      "Confirmed"
+                                    openLawyerDetails(
+                                      lawyer
                                     )
                                   }
+                                  title="View details"
                                 >
-                                  ✓ Confirm
+                                  👁️
                                 </button>
 
                                 <button
-                                  className="btn btn-sm btn-danger"
+                                  className="admin-action-button document"
                                   onClick={() =>
-                                    updateAppointmentStatus(
-                                      appointment.id,
-                                      "Cancelled"
+                                    openDocuments(lawyer)
+                                  }
+                                  title="Documents"
+                                >
+                                  📄
+                                </button>
+
+                                {lawyer.status !==
+                                  "Approved" && (
+                                  <button
+                                    className="admin-action-button approve"
+                                    onClick={() =>
+                                      updateLawyerStatus(
+                                        lawyer.id,
+                                        "Approved"
+                                      )
+                                    }
+                                    title="Approve"
+                                  >
+                                    ✓
+                                  </button>
+                                )}
+
+                                {lawyer.status !==
+                                  "Rejected" && (
+                                  <button
+                                    className="admin-action-button reject"
+                                    onClick={() =>
+                                      updateLawyerStatus(
+                                        lawyer.id,
+                                        "Rejected"
+                                      )
+                                    }
+                                    title="Reject"
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+
+                                <button
+                                  className="admin-action-button account"
+                                  onClick={() =>
+                                    toggleLawyerAccountStatus(
+                                      lawyer.id
                                     )
                                   }
+                                  title={
+                                    lawyer.accountStatus ===
+                                    "Inactive"
+                                      ? "Activate"
+                                      : "Deactivate"
+                                  }
                                 >
-                                  ✕ Cancel
+                                  {lawyer.accountStatus ===
+                                  "Inactive"
+                                    ? "🔓"
+                                    : "🔒"}
                                 </button>
 
                               </div>
 
-                            )}
+                            </td>
 
-                            {appointment.status ===
-                              "Confirmed" && (
+                          </tr>
+                        ))
+                      )}
 
-                              <button
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() =>
-                                  updateAppointmentStatus(
-                                    appointment.id,
-                                    "Cancelled"
-                                  )
-                                }
-                              >
-                                Cancel
-                              </button>
+                    </tbody>
 
-                            )}
+                  </table>
 
-                            {appointment.status ===
-                              "Completed" && (
+                </div>
 
-                              <span className="text-primary">
-                                ✓ Completed
-                              </span>
+              </div>
+            </>
+          )}
 
-                            )}
+          {/* =================================================
+              USER MANAGEMENT
+          ================================================= */}
 
-                            {appointment.status ===
-                              "Cancelled" && (
+          {activeSection === "users" && (
+            <>
+              <div className="admin-page-header">
 
-                              <span className="text-danger">
-                                ✕ Cancelled
-                              </span>
+                <div>
+                  <span className="admin-eyebrow">
+                    USER MANAGEMENT
+                  </span>
 
-                            )}
+                  <h1>Users</h1>
 
-                            {appointment.status ===
-                              "Rejected" && (
+                  <p>
+                    Manage client and registered user
+                    accounts.
+                  </p>
+                </div>
 
-                              <span className="text-danger">
-                                ✕ Rejected
-                              </span>
+                <div className="admin-header-stat">
+                  <strong>{filteredUsers.length}</strong>
+                  <span>Showing Users</span>
+                </div>
 
-                            )}
+              </div>
 
+              {/* USER FILTERS */}
+
+              <div className="admin-filter-card">
+
+                <div className="admin-filter-grid">
+
+                  <div className="admin-input-group admin-search-input">
+                    <label>Search</label>
+
+                    <input
+                      type="text"
+                      placeholder="Name, email or phone..."
+                      value={userSearch}
+                      onChange={(e) =>
+                        setUserSearch(e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Role</label>
+
+                    <select
+                      value={userRoleFilter}
+                      onChange={(e) =>
+                        setUserRoleFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">All Roles</option>
+                      <option value="Client">Client</option>
+                      <option value="Lawyer">Lawyer</option>
+                      <option value="Admin">Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Status</label>
+
+                    <select
+                      value={userStatusFilter}
+                      onChange={(e) =>
+                        setUserStatusFilter(e.target.value)
+                      }
+                    >
+                      <option value="All">
+                        All Status
+                      </option>
+                      <option value="Active">
+                        Active
+                      </option>
+                      <option value="Inactive">
+                        Inactive
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="admin-filter-button-wrapper">
+
+                    <button
+                      className="admin-secondary-button"
+                      onClick={clearUserFilters}
+                    >
+                      ✕ Clear Filters
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* USER TABLE */}
+
+              <div className="admin-table-card">
+
+                <div className="admin-table-header">
+
+                  <div>
+                    <h3>User Directory</h3>
+                    <p>
+                      {filteredUsers.length} user
+                      {filteredUsers.length !== 1
+                        ? "s"
+                        : ""}{" "}
+                      found
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="admin-table-wrapper">
+
+                  <table className="admin-table">
+
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+
+                      {filteredUsers.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan="6"
+                            className="admin-empty-state"
+                          >
+                            <div>
+                              <span>👥</span>
+                              <h3>No users found</h3>
+                              <p>
+                                Try changing your filters.
+                              </p>
+                            </div>
                           </td>
-
                         </tr>
+                      ) : (
+                        filteredUsers.map((user) => (
+                          <tr key={user.id}>
 
-                      )
-                    )
+                            <td>
 
-                  ) : (
+                              <div className="admin-person">
 
-                    <tr>
+                                <div className="admin-person-avatar">
+                                  {user.name
+                                    ?.charAt(0)
+                                    .toUpperCase()}
+                                </div>
 
-                      <td
-                        colSpan="7"
-                        className="text-center text-muted"
-                      >
-                        No appointments found.
-                      </td>
+                                <div>
+                                  <strong>
+                                    {user.name}
+                                  </strong>
 
-                    </tr>
+                                  <span>
+                                    {user.role}
+                                  </span>
+                                </div>
 
-                  )}
+                              </div>
 
-                </tbody>
+                            </td>
 
-              </table>
+                            <td>
+                              {user.email || "—"}
+                            </td>
 
-            </div>
+                            <td>
+                              {user.phone || "—"}
+                            </td>
 
-          </div>
+                            <td>
+                              <span className="admin-role-badge">
+                                {user.role}
+                              </span>
+                            </td>
 
-        )}
+                            <td>
+                              <span
+                                className={getStatusClass(
+                                  user.status
+                                )}
+                              >
+                                {user.status}
+                              </span>
+                            </td>
 
-        {/* ==============================
-            LAWYER DETAILS
-        ============================== */}
+                            <td>
 
-        {selectedLawyer && (
+                              <div className="admin-actions">
 
-          <div className="card shadow-lg p-4 mt-4">
+                                <button
+                                  className="admin-action-button view"
+                                  onClick={() =>
+                                    openUserDetails(user)
+                                  }
+                                  title="View details"
+                                >
+                                  👁️
+                                </button>
 
-            <div className="d-flex justify-content-between">
+                                <button
+                                  className="admin-action-button account"
+                                  onClick={() =>
+                                    updateUserStatus(
+                                      user.id
+                                    )
+                                  }
+                                  title={
+                                    user.status ===
+                                    "Inactive"
+                                      ? "Activate"
+                                      : "Deactivate"
+                                  }
+                                >
+                                  {user.status ===
+                                  "Inactive"
+                                    ? "🔓"
+                                    : "🔒"}
+                                </button>
 
-              <h3 className="fw-bold">
-                Lawyer Details
-              </h3>
+                              </div>
+
+                            </td>
+
+                          </tr>
+                        ))
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+            </>
+          )}
+
+          {/* =================================================
+              APPOINTMENT MANAGEMENT
+          ================================================= */}
+
+          {activeSection === "appointments" && (
+            <>
+              <div className="admin-page-header">
+
+                <div>
+                  <span className="admin-eyebrow">
+                    APPOINTMENT MANAGEMENT
+                  </span>
+
+                  <h1>Appointments</h1>
+
+                  <p>
+                    Monitor and manage all consultation
+                    bookings.
+                  </p>
+                </div>
+
+                <div className="admin-header-stat">
+                  <strong>
+                    {filteredAppointments.length}
+                  </strong>
+                  <span>Showing Appointments</span>
+                </div>
+
+              </div>
+
+              {/* APPOINTMENT FILTERS */}
+
+              <div className="admin-filter-card">
+
+                <div className="admin-filter-grid">
+
+                  <div className="admin-input-group admin-search-input">
+                    <label>Search</label>
+
+                    <input
+                      type="text"
+                      placeholder="Client, lawyer, date, time..."
+                      value={appointmentSearch}
+                      onChange={(e) =>
+                        setAppointmentSearch(
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Status</label>
+
+                    <select
+                      value={appointmentStatusFilter}
+                      onChange={(e) =>
+                        setAppointmentStatusFilter(
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="All">
+                        All Status
+                      </option>
+                      <option value="Pending">
+                        Pending
+                      </option>
+                      <option value="Confirmed">
+                        Confirmed
+                      </option>
+                      <option value="Completed">
+                        Completed
+                      </option>
+                      <option value="Cancelled">
+                        Cancelled
+                      </option>
+                      <option value="Rejected">
+                        Rejected
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Consultation Type</label>
+
+                    <select
+                      value={appointmentTypeFilter}
+                      onChange={(e) =>
+                        setAppointmentTypeFilter(
+                          e.target.value
+                        )
+                      }
+                    >
+                      <option value="All">
+                        All Types
+                      </option>
+                      <option value="Online">
+                        Online
+                      </option>
+                      <option value="Offline">
+                        Offline
+                      </option>
+                      <option value="Video">
+                        Video
+                      </option>
+                      <option value="In-Person">
+                        In-Person
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="admin-input-group">
+                    <label>Date</label>
+
+                    <input
+                      type="date"
+                      value={appointmentDateFilter}
+                      onChange={(e) =>
+                        setAppointmentDateFilter(
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="admin-filter-button-wrapper">
+
+                    <button
+                      className="admin-secondary-button"
+                      onClick={
+                        clearAppointmentFilters
+                      }
+                    >
+                      ✕ Clear Filters
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* APPOINTMENT TABLE */}
+
+              <div className="admin-table-card">
+
+                <div className="admin-table-header">
+
+                  <div>
+                    <h3>Appointment Directory</h3>
+
+                    <p>
+                      {filteredAppointments.length}{" "}
+                      appointment
+                      {filteredAppointments.length !==
+                      1
+                        ? "s"
+                        : ""}{" "}
+                      found
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="admin-table-wrapper">
+
+                  <table className="admin-table">
+
+                    <thead>
+                      <tr>
+                        <th>Client</th>
+                        <th>Lawyer</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Fee</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+
+                      {filteredAppointments.length ===
+                      0 ? (
+                        <tr>
+                          <td
+                            colSpan="8"
+                            className="admin-empty-state"
+                          >
+                            <div>
+                              <span>📅</span>
+                              <h3>
+                                No appointments found
+                              </h3>
+                              <p>
+                                Try changing your
+                                filters.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredAppointments.map(
+                          (appointment) => (
+                            <tr key={appointment.id}>
+
+                              <td>
+
+                                <div className="admin-person">
+
+                                  <div className="admin-person-avatar">
+                                    {appointment.client
+                                      ?.charAt(0)
+                                      .toUpperCase()}
+                                  </div>
+
+                                  <div>
+                                    <strong>
+                                      {
+                                        appointment.client
+                                      }
+                                    </strong>
+
+                                    <span>
+                                      {appointment.clientEmail ||
+                                        "Client"}
+                                    </span>
+                                  </div>
+
+                                </div>
+
+                              </td>
+
+                              <td>
+                                {appointment.lawyer}
+                              </td>
+
+                              <td>
+                                {appointment.date ||
+                                  "—"}
+                              </td>
+
+                              <td>
+                                {appointment.time ||
+                                  "—"}
+                              </td>
+
+                              <td>
+                                <span className="admin-role-badge">
+                                  {appointment.type}
+                                </span>
+                              </td>
+
+                              <td>
+                                ₹
+                                {Number(
+                                  appointment.fee || 0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </td>
+
+                              <td>
+                                <span
+                                  className={getStatusClass(
+                                    appointment.status
+                                  )}
+                                >
+                                  {
+                                    appointment.status
+                                  }
+                                </span>
+                              </td>
+
+                              <td>
+
+                                <div className="admin-actions">
+
+                                  <button
+                                    className="admin-action-button view"
+                                    onClick={() =>
+                                      openAppointmentDetails(
+                                        appointment
+                                      )
+                                    }
+                                    title="View details"
+                                  >
+                                    👁️
+                                  </button>
+
+                                  {appointment.status ===
+                                    "Pending" && (
+                                    <>
+                                      <button
+                                        className="admin-action-button approve"
+                                        onClick={() =>
+                                          updateAppointmentStatus(
+                                            appointment.id,
+                                            "Confirmed"
+                                          )
+                                        }
+                                        title="Confirm"
+                                      >
+                                        ✓
+                                      </button>
+
+                                      <button
+                                        className="admin-action-button reject"
+                                        onClick={() =>
+                                          updateAppointmentStatus(
+                                            appointment.id,
+                                            "Rejected"
+                                          )
+                                        }
+                                        title="Reject"
+                                      >
+                                        ✕
+                                      </button>
+                                    </>
+                                  )}
+
+                                  {appointment.status ===
+                                    "Confirmed" && (
+                                    <button
+                                      className="admin-action-button reject"
+                                      onClick={() =>
+                                        updateAppointmentStatus(
+                                          appointment.id,
+                                          "Cancelled"
+                                        )
+                                      }
+                                      title="Cancel"
+                                    >
+                                      ✕
+                                    </button>
+                                  )}
+
+                                </div>
+
+                              </td>
+
+                            </tr>
+                          )
+                        )
+                      )}
+
+                    </tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+            </>
+          )}
+
+        </div>
+      </main>
+
+      {/* =====================================================
+          LAWYER DETAILS MODAL
+      ===================================================== */}
+
+      {showLawyerDetails && selectedLawyer && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() =>
+            setShowLawyerDetails(false)
+          }
+        >
+          <div
+            className="admin-details-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="admin-modal-header">
+
+              <div>
+                <span className="admin-eyebrow">
+                  LAWYER PROFILE
+                </span>
+
+                <h2>Lawyer Details</h2>
+              </div>
 
               <button
-                className="btn btn-sm btn-outline-secondary"
+                className="admin-modal-close"
                 onClick={() =>
-                  setSelectedLawyer(
-                    null
-                  )
+                  setShowLawyerDetails(false)
                 }
               >
                 ✕
@@ -1325,143 +2396,561 @@ function AdminDashboard() {
 
             </div>
 
-            <hr />
+            <div className="admin-profile-large">
 
-            <div className="row g-3">
-
-              <div className="col-md-6">
-
-                <strong>
-                  Lawyer Name
-                </strong>
-
-                <p>
-                  {
-                    selectedLawyer.name
-                  }
-                </p>
-
+              <div className="admin-large-avatar">
+                {selectedLawyer.name
+                  ?.replace("Adv. ", "")
+                  .charAt(0)
+                  .toUpperCase()}
               </div>
 
-              <div className="col-md-6">
-
-                <strong>
-                  Practice Area
-                </strong>
+              <div>
+                <h3>{selectedLawyer.name}</h3>
 
                 <p>
-                  {
-                    selectedLawyer.specialization ||
-                    "Not Selected"
-                  }
+                  {selectedLawyer.specialization ||
+                    "Not Selected"}
                 </p>
 
-              </div>
-
-              <div className="col-md-6">
-
-                <strong>
-                  City
-                </strong>
-
-                <p>
-                  {
-                    selectedLawyer.city ||
-                    "Not Selected"
-                  }
-                </p>
-
-              </div>
-
-              <div className="col-md-6">
-
-                <strong>
-                  Experience
-                </strong>
-
-                <p>
-                  {
-                    selectedLawyer.experience ||
-                    0
-                  }{" "}
-                  Years
-                </p>
-
-              </div>
-
-              <div className="col-md-6">
-
-                <strong>
-                  Consultation Fee
-                </strong>
-
-                <p>
-                  ₹
-                  {
-                    selectedLawyer.fee ||
-                    0
-                  }
-                </p>
-
-              </div>
-
-              <div className="col-md-6">
-
-                <strong>
-                  Verification Status
-                </strong>
-
-                <p>
-                  {
+                <span
+                  className={getStatusClass(
                     selectedLawyer.status
-                  }
-                </p>
-
+                  )}
+                >
+                  {selectedLawyer.status}
+                </span>
               </div>
 
-              {selectedLawyer.email && (
+            </div>
 
-                <div className="col-md-6">
+            <div className="admin-details-grid">
 
-                  <strong>
-                    Email
-                  </strong>
+              <div>
+                <span>Email</span>
+                <strong>
+                  {selectedLawyer.email || "—"}
+                </strong>
+              </div>
 
-                  <p>
-                    {
-                      selectedLawyer.email
-                    }
-                  </p>
+              <div>
+                <span>Phone</span>
+                <strong>
+                  {selectedLawyer.phone || "—"}
+                </strong>
+              </div>
 
-                </div>
+              <div>
+                <span>Practice Area</span>
+                <strong>
+                  {selectedLawyer.specialization ||
+                    "—"}
+                </strong>
+              </div>
 
+              <div>
+                <span>City</span>
+                <strong>
+                  {selectedLawyer.city || "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Experience</span>
+                <strong>
+                  {selectedLawyer.experience
+                    ? `${selectedLawyer.experience} years`
+                    : "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Consultation Fee</span>
+                <strong>
+                  ₹
+                  {Number(
+                    selectedLawyer.fee || 0
+                  ).toLocaleString("en-IN")}
+                </strong>
+              </div>
+
+              <div>
+                <span>Account Status</span>
+                <strong>
+                  {selectedLawyer.accountStatus ||
+                    "Active"}
+                </strong>
+              </div>
+
+            </div>
+
+            <div className="admin-modal-actions">
+
+              {selectedLawyer.status !== "Approved" && (
+                <button
+                  className="admin-primary-button"
+                  onClick={() =>
+                    updateLawyerStatus(
+                      selectedLawyer.id,
+                      "Approved"
+                    )
+                  }
+                >
+                  ✓ Approve Lawyer
+                </button>
               )}
 
-              {selectedLawyer.phone && (
-
-                <div className="col-md-6">
-
-                  <strong>
-                    Phone
-                  </strong>
-
-                  <p>
-                    {
-                      selectedLawyer.phone
-                    }
-                  </p>
-
-                </div>
-
+              {selectedLawyer.status !== "Rejected" && (
+                <button
+                  className="admin-danger-button"
+                  onClick={() =>
+                    updateLawyerStatus(
+                      selectedLawyer.id,
+                      "Rejected"
+                    )
+                  }
+                >
+                  ✕ Reject Lawyer
+                </button>
               )}
+
+              <button
+                className="admin-secondary-button"
+                onClick={() =>
+                  toggleLawyerAccountStatus(
+                    selectedLawyer.id
+                  )
+                }
+              >
+                {selectedLawyer.accountStatus ===
+                "Inactive"
+                  ? "🔓 Activate Account"
+                  : "🔒 Deactivate Account"}
+              </button>
 
             </div>
 
           </div>
+        </div>
+      )}
 
+      {/* =====================================================
+          DOCUMENTS MODAL
+      ===================================================== */}
+
+      {showDocuments && selectedLawyer && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() => setShowDocuments(false)}
+        >
+          <div
+            className="admin-details-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="admin-modal-header">
+
+              <div>
+                <span className="admin-eyebrow">
+                  VERIFICATION
+                </span>
+
+                <h2>Lawyer Documents</h2>
+
+                <p>
+                  {selectedLawyer.name}
+                </p>
+              </div>
+
+              <button
+                className="admin-modal-close"
+                onClick={() =>
+                  setShowDocuments(false)
+                }
+              >
+                ✕
+              </button>
+
+            </div>
+
+            <div className="admin-document-grid">
+
+              <div className="admin-document-card">
+
+                <div className="admin-document-icon">
+                  📜
+                </div>
+
+                <div>
+                  <h3>
+                    Bar Council Certificate
+                  </h3>
+
+                  <span
+                    className={getStatusClass(
+                      selectedLawyer.documents
+                        ?.barCouncilCertificate ||
+                        "Not Uploaded"
+                    )}
+                  >
+                    {selectedLawyer.documents
+                      ?.barCouncilCertificate ||
+                      "Not Uploaded"}
+                  </span>
+                </div>
+
+              </div>
+
+              <div className="admin-document-card">
+
+                <div className="admin-document-icon">
+                  🪪
+                </div>
+
+                <div>
+                  <h3>Identity Proof</h3>
+
+                  <span
+                    className={getStatusClass(
+                      selectedLawyer.documents
+                        ?.identityProof ||
+                        "Not Uploaded"
+                    )}
+                  >
+                    {selectedLawyer.documents
+                      ?.identityProof ||
+                      "Not Uploaded"}
+                  </span>
+                </div>
+
+              </div>
+
+              <div className="admin-document-card">
+
+                <div className="admin-document-icon">
+                  🎓
+                </div>
+
+                <div>
+                  <h3>Degree Certificate</h3>
+
+                  <span
+                    className={getStatusClass(
+                      selectedLawyer.documents
+                        ?.degreeCertificate ||
+                        "Not Uploaded"
+                    )}
+                  >
+                    {selectedLawyer.documents
+                      ?.degreeCertificate ||
+                      "Not Uploaded"}
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="admin-document-note">
+              <strong>Verification Note</strong>
+
+              <p>
+                Review the submitted documents before
+                approving the lawyer profile.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          USER DETAILS MODAL
+      ===================================================== */}
+
+      {showUserDetails && selectedUser && (
+        <div
+          className="admin-modal-overlay"
+          onClick={() =>
+            setShowUserDetails(false)
+          }
+        >
+          <div
+            className="admin-details-panel"
+            onClick={(e) => e.stopPropagation()}
+          >
+
+            <div className="admin-modal-header">
+
+              <div>
+                <span className="admin-eyebrow">
+                  USER PROFILE
+                </span>
+
+                <h2>User Details</h2>
+              </div>
+
+              <button
+                className="admin-modal-close"
+                onClick={() =>
+                  setShowUserDetails(false)
+                }
+              >
+                ✕
+              </button>
+
+            </div>
+
+            <div className="admin-profile-large">
+
+              <div className="admin-large-avatar">
+                {selectedUser.name
+                  ?.charAt(0)
+                  .toUpperCase()}
+              </div>
+
+              <div>
+                <h3>{selectedUser.name}</h3>
+
+                <p>
+                  {selectedUser.role}
+                </p>
+
+                <span
+                  className={getStatusClass(
+                    selectedUser.status
+                  )}
+                >
+                  {selectedUser.status}
+                </span>
+              </div>
+
+            </div>
+
+            <div className="admin-details-grid">
+
+              <div>
+                <span>Name</span>
+                <strong>
+                  {selectedUser.name}
+                </strong>
+              </div>
+
+              <div>
+                <span>Email</span>
+                <strong>
+                  {selectedUser.email || "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Phone</span>
+                <strong>
+                  {selectedUser.phone || "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span>Role</span>
+                <strong>
+                  {selectedUser.role}
+                </strong>
+              </div>
+
+              <div>
+                <span>Status</span>
+                <strong>
+                  {selectedUser.status}
+                </strong>
+              </div>
+
+              <div>
+                <span>User ID</span>
+                <strong>
+                  {selectedUser.id}
+                </strong>
+              </div>
+
+            </div>
+
+            <div className="admin-modal-actions">
+
+              <button
+                className="admin-secondary-button"
+                onClick={() =>
+                  updateUserStatus(
+                    selectedUser.id
+                  )
+                }
+              >
+                {selectedUser.status === "Inactive"
+                  ? "🔓 Activate User"
+                  : "🔒 Deactivate User"}
+              </button>
+
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================
+          APPOINTMENT DETAILS MODAL
+      ===================================================== */}
+
+      {showAppointmentDetails &&
+        selectedAppointment && (
+          <div
+            className="admin-modal-overlay"
+            onClick={() =>
+              setShowAppointmentDetails(false)
+            }
+          >
+            <div
+              className="admin-details-panel"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+
+              <div className="admin-modal-header">
+
+                <div>
+                  <span className="admin-eyebrow">
+                    BOOKING DETAILS
+                  </span>
+
+                  <h2>Appointment Details</h2>
+                </div>
+
+                <button
+                  className="admin-modal-close"
+                  onClick={() =>
+                    setShowAppointmentDetails(false)
+                  }
+                >
+                  ✕
+                </button>
+
+              </div>
+
+              <div className="admin-details-grid">
+
+                <div>
+                  <span>Client</span>
+                  <strong>
+                    {selectedAppointment.client}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Client Email</span>
+                  <strong>
+                    {selectedAppointment.clientEmail ||
+                      "—"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Lawyer</span>
+                  <strong>
+                    {selectedAppointment.lawyer}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Date</span>
+                  <strong>
+                    {selectedAppointment.date ||
+                      "—"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Time</span>
+                  <strong>
+                    {selectedAppointment.time ||
+                      "—"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Consultation Type</span>
+                  <strong>
+                    {selectedAppointment.type}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Fee</span>
+                  <strong>
+                    ₹
+                    {Number(
+                      selectedAppointment.fee || 0
+                    ).toLocaleString("en-IN")}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Status</span>
+                  <strong>
+                    {selectedAppointment.status}
+                  </strong>
+                </div>
+
+              </div>
+
+              <div className="admin-modal-actions">
+
+                {selectedAppointment.status ===
+                  "Pending" && (
+                  <>
+                    <button
+                      className="admin-primary-button"
+                      onClick={() =>
+                        updateAppointmentStatus(
+                          selectedAppointment.id,
+                          "Confirmed"
+                        )
+                      }
+                    >
+                      ✓ Confirm Appointment
+                    </button>
+
+                    <button
+                      className="admin-danger-button"
+                      onClick={() =>
+                        updateAppointmentStatus(
+                          selectedAppointment.id,
+                          "Rejected"
+                        )
+                      }
+                    >
+                      ✕ Reject Appointment
+                    </button>
+                  </>
+                )}
+
+                {selectedAppointment.status ===
+                  "Confirmed" && (
+                  <button
+                    className="admin-danger-button"
+                    onClick={() =>
+                      updateAppointmentStatus(
+                        selectedAppointment.id,
+                        "Cancelled"
+                      )
+                    }
+                  >
+                    ✕ Cancel Appointment
+                  </button>
+                )}
+
+              </div>
+
+            </div>
+          </div>
         )}
-
-      </div>
 
     </div>
   );
